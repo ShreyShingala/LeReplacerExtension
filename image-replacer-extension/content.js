@@ -94,7 +94,289 @@ function isGooglePage() {
 }
 
 /**
- * Apply sunshine background and LeBron color theme to Google pages
+ * Apply LeBron color theme to ALL webpages
+ */
+function applyLeBronTheme() {
+  // Inject LeBron-themed color scheme for ALL websites
+  const style = document.createElement('style');
+  style.id = 'lebron-theme';
+  style.textContent = `
+    /* LeBron James Color Theme - Brown, Orange, Gold - UNIVERSAL */
+    
+    /* Body background tint */
+    body {
+      background-color: #FFF8DC !important;
+    }
+    
+    /* All input fields and textareas */
+    input[type="text"], input[type="search"], input[type="email"], 
+    input[type="password"], input[type="url"], textarea, 
+    input[type="number"], input[type="tel"] {
+      background-color: rgba(139, 90, 43, 0.08) !important;
+      border-color: #D4A574 !important;
+      color: #4A3528 !important;
+    }
+    
+    /* Input focus states */
+    input[type="text"]:focus, input[type="search"]:focus, 
+    input[type="email"]:focus, input[type="password"]:focus, 
+    input[type="url"]:focus, textarea:focus,
+    input[type="number"]:focus, input[type="tel"]:focus {
+      background-color: rgba(212, 165, 116, 0.15) !important;
+      border-color: #FFA500 !important;
+      box-shadow: 0 0 6px rgba(255, 165, 0, 0.4) !important;
+      outline-color: #FF8C00 !important;
+    }
+    
+    /* All Buttons - Lighter brown for easier viewing */
+    button, input[type="submit"], input[type="button"], 
+    input[type="reset"], .button, [role="button"] {
+      background-color: #A0826D !important;
+      color: #FFF8DC !important;
+      border: 1px solid #D4A574 !important;
+    }
+    
+    button:hover, input[type="submit"]:hover, 
+    input[type="button"]:hover, input[type="reset"]:hover,
+    .button:hover, [role="button"]:hover {
+      background-color: #8B7355 !important;
+      box-shadow: 0 2px 8px rgba(139, 90, 43, 0.4) !important;
+    }
+    
+    /* Google-specific: Sign in button and app bar */
+    .gb_E, .gb_Sd, #gb_70, #gb_71, .gb_D, #tU52Vb, .WE0UJf, #slim_appbar {
+      background-color: rgba(160, 130, 109, 0.9) !important;
+      color: #FFF8DC !important;
+    }
+    
+    .gb_E:hover, .gb_Sd:hover {
+      background-color: rgba(139, 115, 85, 0.95) !important;
+    }
+    
+    /* Google Search Bar - Complete brown coverage */
+    .RNNXgb, .SDkEP, .a4bIc, .gLFyf, .YacQv {
+      background-color: rgba(139, 90, 43, 0.12) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Search bar container */
+    .A8SBwf, .RNNXgb, .emcav {
+      background-color: rgba(139, 90, 43, 0.12) !important;
+    }
+    
+    /* Google Search Results - Light brown background instead of white */
+    .g, .Ww4FFb, .MjjYud, .hlcw0c, .ULSxyf, .related-question-pair, 
+    .kp-wholepage, .xpdopen, .ifM9O, .V3FYCf, .cUnQKe {
+      background-color: rgba(210, 180, 140, 0.25) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Individual search result cards */
+    .tF2Cxc, .kvH3mc, .Z26q7c {
+      background-color: rgba(222, 184, 135, 0.3) !important;
+      padding: 12px !important;
+      border-radius: 8px !important;
+      margin-bottom: 8px !important;
+    }
+    
+    /* All Links */
+    a {
+      color: #FF8C00 !important;
+    }
+    
+    a:visited {
+      color: #CD853F !important;
+    }
+    
+    a:hover {
+      color: #FFA500 !important;
+      text-decoration-color: #FFA500 !important;
+    }
+    
+    /* Headings */
+    h1, h2, h3, h4, h5, h6 {
+      color: #8B4513 !important;
+    }
+    
+    /* Select dropdowns */
+    select {
+      background-color: rgba(139, 90, 43, 0.1) !important;
+      border-color: #D4A574 !important;
+      color: #4A3528 !important;
+    }
+    
+    select:focus {
+      border-color: #FFA500 !important;
+      box-shadow: 0 0 4px rgba(255, 165, 0, 0.4) !important;
+    }
+    
+    /* Navigation bars */
+    nav, header, .nav, .navbar, .header {
+      background-color: rgba(139, 90, 43, 0.15) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Cards and panels */
+    .card, .panel, .box, article, section {
+      background-color: rgba(255, 248, 220, 0.7) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Tables */
+    table {
+      border-color: #D4A574 !important;
+    }
+    
+    th {
+      background-color: #A0826D !important;
+      color: #FFF8DC !important;
+      border-color: #D4A574 !important;
+    }
+    
+    td {
+      border-color: #D4A574 !important;
+      background-color: rgba(255, 248, 220, 0.5) !important;
+    }
+    
+    tr:hover td {
+      background-color: rgba(212, 165, 116, 0.3) !important;
+    }
+    
+    /* Scrollbars (Webkit browsers) */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #FFF8DC !important;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #A0826D !important;
+      border-radius: 6px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8B7355 !important;
+    }
+    
+    /* Code blocks */
+    code, pre {
+      background-color: rgba(139, 90, 43, 0.1) !important;
+      border-color: #D4A574 !important;
+      color: #5C4033 !important;
+    }
+    
+    /* Modals and dialogs */
+    .modal, .dialog, [role="dialog"] {
+      background-color: rgba(255, 248, 220, 0.98) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Alerts and notifications */
+    .alert, .notification, .message {
+      background-color: rgba(255, 140, 0, 0.2) !important;
+      border-color: #FF8C00 !important;
+      color: #5C4033 !important;
+    }
+    
+    /* Badges */
+    .badge, .tag, .label {
+      background-color: #A0826D !important;
+      color: #FFF8DC !important;
+    }
+    
+    /* Progress bars */
+    progress, .progress-bar {
+      background-color: #D4A574 !important;
+    }
+    
+    progress::-webkit-progress-bar {
+      background-color: rgba(212, 165, 116, 0.3) !important;
+    }
+    
+    progress::-webkit-progress-value {
+      background-color: #FF8C00 !important;
+    }
+    
+    /* Tooltips */
+    .tooltip, [data-tooltip] {
+      background-color: #A0826D !important;
+      color: #FFF8DC !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Footer */
+    footer {
+      background-color: rgba(92, 64, 51, 0.3) !important;
+      color: #8B4513 !important;
+    }
+    
+    /* Sidebar */
+    aside, .sidebar {
+      background-color: rgba(255, 248, 220, 0.6) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Form labels */
+    label {
+      color: #5C4033 !important;
+    }
+    
+    /* Checkboxes and radio buttons */
+    input[type="checkbox"], input[type="radio"] {
+      accent-color: #FF8C00 !important;
+    }
+    
+    /* Placeholder text */
+    ::placeholder {
+      color: #A0826D !important;
+      opacity: 0.8 !important;
+    }
+    
+    /* Selection highlight */
+    ::selection {
+      background-color: #FF8C00 !important;
+      color: white !important;
+    }
+    
+    ::-moz-selection {
+      background-color: #FF8C00 !important;
+      color: white !important;
+    }
+  `;
+  
+  // Remove old style if exists
+  const oldStyle = document.getElementById('lebron-theme');
+  if (oldStyle) oldStyle.remove();
+  
+  // Add new style
+  document.head.appendChild(style);
+  
+  console.log('[Image Replacer] Applied LeBron color theme to webpage');
+}
+
+/**
+ * Check if current page is a Google page (search or homepage)
+ */
+function isGooglePage() {
+  const hostname = window.location.hostname.toLowerCase();
+  const url = window.location.href.toLowerCase();
+  
+  // Check for regular Google pages
+  const isGoogleDomain = hostname === 'www.google.com' || hostname === 'google.com';
+  
+  // Check for Chrome new tab page
+  const isNewTab = url.startsWith('chrome://newtab') || 
+                   url.startsWith('chrome-search://local-ntp') ||
+                   hostname === 'newtab';
+  
+  return isGoogleDomain || isNewTab;
+}
+
+/**
+ * Apply sunshine background to Google pages only
  */
 function applyGoogleBackground() {
   if (!isGooglePage()) return;
@@ -108,130 +390,7 @@ function applyGoogleBackground() {
   document.body.style.backgroundRepeat = 'no-repeat';
   document.body.style.backgroundAttachment = 'fixed';
   
-  // Inject LeBron-themed color scheme
-  const style = document.createElement('style');
-  style.id = 'lebron-theme';
-  style.textContent = `
-    /* LeBron James Color Theme - Brown, Orange, Gold */
-    
-    /* Google Search Bar */
-    .RNNXgb, .SDkEP, input[type="text"], textarea {
-      background-color: rgba(139, 90, 43, 0.15) !important;
-      border-color: #D4A574 !important;
-    }
-    
-    /* Search Bar on Focus */
-    .RNNXgb:focus-within, input[type="text"]:focus, textarea:focus {
-      background-color: rgba(212, 165, 116, 0.2) !important;
-      border-color: #FFA500 !important;
-      box-shadow: 0 1px 6px rgba(212, 165, 116, 0.5) !important;
-    }
-    
-    /* Buttons */
-    .FPdoLc input[type="submit"], button, .gNO89b {
-      background-color: #8B5A2B !important;
-      color: #FFD700 !important;
-      border: 1px solid #D4A574 !important;
-    }
-    
-    .FPdoLc input[type="submit"]:hover, button:hover {
-      background-color: #6B4423 !important;
-      box-shadow: 0 2px 8px rgba(139, 90, 43, 0.4) !important;
-    }
-    
-    /* Links */
-    a, .LC20lb {
-      color: #FF8C00 !important;
-    }
-    
-    a:visited {
-      color: #CD853F !important;
-    }
-    
-    a:hover {
-      color: #FFA500 !important;
-    }
-    
-    /* Search Result Titles */
-    h1, h2, h3, .LC20lb {
-      color: #8B4513 !important;
-    }
-    
-    /* Google Logo */
-    #logo img, .lnXdpd {
-      filter: sepia(0.6) saturate(1.5) hue-rotate(-10deg) !important;
-    }
-    
-    /* Cards and Containers */
-    .g, .hlcw0c, .ULSxyf, .related-question-pair, .kp-wholepage {
-      background-color: rgba(255, 248, 220, 0.85) !important;
-      border-color: #D4A574 !important;
-    }
-    
-    /* Dropdown menus */
-    .EIlDfe, .UUbT9, select {
-      background-color: rgba(139, 90, 43, 0.1) !important;
-      border-color: #D4A574 !important;
-    }
-    
-    /* Nav buttons and tabs */
-    .hdtb-mitem a, .MBeuO {
-      color: #8B5A2B !important;
-    }
-    
-    .hdtb-mitem.hdtb-msel, .MBeuO.Kindmi {
-      color: #FF8C00 !important;
-      border-bottom-color: #FFA500 !important;
-    }
-    
-    /* Info cards/snippets */
-    .kno-rdesc, .kno-fv, .ayRjaf {
-      background-color: rgba(255, 248, 220, 0.9) !important;
-      color: #5C4033 !important;
-    }
-    
-    /* Suggestions and autocomplete */
-    .erkvQe, .sbct {
-      background-color: rgba(255, 248, 220, 0.95) !important;
-      border-color: #D4A574 !important;
-    }
-    
-    .sbct:hover, .sbqs_c:hover {
-      background-color: rgba(212, 165, 116, 0.3) !important;
-    }
-    
-    /* Text colors for better contrast */
-    .VwiC3b, .MUxGbd, .yXK7lf, .r025kc, span, div {
-      color: #4A3528 !important;
-    }
-    
-    /* Top navigation bar */
-    .gb_Vd, .gb_Be {
-      background-color: rgba(139, 90, 43, 0.3) !important;
-      border-color: #D4A574 !important;
-    }
-    
-    /* Footer */
-    .SJajHc, footer {
-      background-color: rgba(92, 64, 51, 0.8) !important;
-      color: #FFD700 !important;
-    }
-    
-    /* Image results overlay */
-    .ivg-i, .iKjWAf {
-      background-color: rgba(255, 248, 220, 0.95) !important;
-      border-color: #D4A574 !important;
-    }
-  `;
-  
-  // Remove old style if exists
-  const oldStyle = document.getElementById('lebron-theme');
-  if (oldStyle) oldStyle.remove();
-  
-  // Add new style
-  document.head.appendChild(style);
-  
-  console.log('[Image Replacer] Applied sunshine background and LeBron color theme to Google page');
+  console.log('[Image Replacer] Applied sunshine background to Google page');
 }
 
 /**
@@ -679,6 +838,9 @@ chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
 
 // Apply Google background immediately if on Google page
 applyGoogleBackground();
+
+// Apply LeBron theme to ALL pages
+applyLeBronTheme();
 
 // Handle direct image pages
 handleDirectImagePage();
