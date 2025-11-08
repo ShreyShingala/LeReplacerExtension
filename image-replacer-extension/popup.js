@@ -2,13 +2,17 @@ const toggleButton = document.getElementById("toggle");
 const toggleDownloadsButton = document.getElementById("toggleDownloads");
 const openDownloadsButton = document.getElementById("openDownloads");
 const resetButton = document.getElementById("reset");
+const imageUpload = document.getElementById("imageUpload");
+const previewContainer = document.getElementById("previewContainer");
+const previewImg = document.getElementById("previewImg");
 
 function updateButton(enabled) {
   toggleButton.textContent = enabled ? "Disable face detection" : "Enable face detection";
 }
 
 function updateDownloadsButton(enabled) {
-  toggleDownloadsButton.textContent = enabled ? "💾 Disable auto-save" : "💾 Enable auto-save";
+  toggleDownloadsButton.textContent = enabled ? "Disable auto-save" : "Enable auto-save";
+  toggleDownloadsButton.style.backgroundColor = enabled ? "#f44336" : "#4CAF50";
 }
 
 function getActiveTab() {
@@ -19,13 +23,21 @@ function getActiveTab() {
   });
 }
 
-chrome.storage.sync.get({ enabled: true, saveDownloads: false }, (result) => {
+chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
   const enabled = Boolean(result.enabled);
-  const saveDownloads = Boolean(result.saveDownloads);
+  const downloadsEnabled = Boolean(result.downloadsEnabled);
   updateButton(enabled);
-  updateDownloadsButton(saveDownloads);
+  updateDownloadsButton(downloadsEnabled);
   toggleButton.disabled = false;
   toggleDownloadsButton.disabled = false;
+});
+
+// Load and display saved overlay image
+chrome.storage.local.get(['overlayImage'], (result) => {
+  if (result.overlayImage) {
+    previewImg.src = result.overlayImage;
+    previewContainer.style.display = 'block';
+  }
 });
 
 toggleButton.addEventListener("click", async () => {
@@ -50,16 +62,26 @@ toggleButton.addEventListener("click", async () => {
   });
 });
 
-// Toggle auto-save downloads
+// Toggle downloads
 toggleDownloadsButton.addEventListener("click", () => {
   toggleDownloadsButton.disabled = true;
-
-  chrome.storage.sync.get({ saveDownloads: false }, (result) => {
-    const saveDownloads = !Boolean(result.saveDownloads);
-
-    chrome.storage.sync.set({ saveDownloads }, () => {
-      updateDownloadsButton(saveDownloads);
+  
+  chrome.storage.sync.get({ downloadsEnabled: true }, (result) => {
+    const downloadsEnabled = !Boolean(result.downloadsEnabled);
+    
+    chrome.storage.sync.set({ downloadsEnabled }, () => {
+      updateDownloadsButton(downloadsEnabled);
       toggleDownloadsButton.disabled = false;
+      
+      // Notify content script of the change
+      getActiveTab().then(activeTab => {
+        if (activeTab?.id) {
+          chrome.tabs.sendMessage(activeTab.id, {
+            type: "toggle-downloads",
+            enabled: downloadsEnabled
+          });
+        }
+      });
     });
   });
 });
@@ -76,5 +98,35 @@ resetButton.addEventListener("click", () => {
       alert('Download counter reset!');
     }
   });
+});
+
+// Handle image upload
+imageUpload.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    
+    // Save to storage
+    chrome.storage.local.set({ overlayImage: dataUrl }, () => {
+      // Update preview
+      previewImg.src = dataUrl;
+      previewContainer.style.display = 'block';
+      
+      // Notify all tabs to update their overlay image
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+          chrome.tabs.sendMessage(tab.id, {
+            type: "update-overlay-image",
+            dataUrl: dataUrl
+          }).catch(() => {}); // Ignore errors for tabs that don't have content script
+        });
+      });
+    });
+  };
+  
+  reader.readAsDataURL(file);
 });
 

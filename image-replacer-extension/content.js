@@ -1,7 +1,6 @@
 
 //const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
-const GLUE_PLACEHOLDER = "glue-stain.png"
-
+const GLUE_PLACEHOLDER = "goat.png";
 let observer = null;
 let fullScanTimer = null;
 let isScanning = false; // Prevent multiple simultaneous scans
@@ -13,6 +12,8 @@ const MIN_PIXEL_AREA = 5000; // skip tiny images (w*h)
 // Face detection state
 let faceDetector = null;
 const detectionCache = new Map();
+let downloadsEnabled = true; // Default to enabled
+let customOverlayImage = null; // Store custom uploaded image
 
 /**
  * Initialize Chrome's Face Detection API
@@ -114,7 +115,28 @@ async function drawFacesOnImage(img, faces) {
     // Draw the original image
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     
-    // BOUNDING BOX CODE - Show green rectangles around faces
+    // Draw overlay image on each face
+    if (faces && faces.length > 0) {
+      // Load the overlay image from extension files or custom upload
+      const overlayImg = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        // Use custom image if uploaded, otherwise use default glue stain
+        img.src = customOverlayImage || chrome.runtime.getURL(GLUE_PLACEHOLDER);
+      });
+      
+      // Draw overlay on each detected face
+      faces.forEach(face => {
+        const box = face.boundingBox;
+        
+        // Draw the overlay image scaled to fit the face bounding box
+        ctx.drawImage(overlayImg, box.x, box.y, box.width, box.height);
+      });
+    }
+    
+    /* BOUNDING BOX CODE - Uncomment to show green rectangles instead of overlay
     if (faces && faces.length > 0) {
       ctx.strokeStyle = '#00FF00'; // Green color
       ctx.lineWidth = Math.max(3, canvas.width / 200); // Scale line width with image size
@@ -134,9 +156,10 @@ async function drawFacesOnImage(img, faces) {
         ctx.fillText(`Face ${confidence}%`, box.x, box.y - 5);
       });
     }
+    */
     
-    // Convert canvas to data URL (AFTER drawing overlay)
-    return canvas.toDataURL('image/png', 0.95);
+    // Convert canvas to data URL
+    return canvas.toDataURL('image/jpeg', 0.9);
   } catch (err) {
     console.error('[Image Replacer] Error drawing faces:', err);
     return null;
@@ -286,24 +309,25 @@ async function scanAndReplace() {
           // Face detected = person present, replace with annotated image
           replaceImageElement(img, result.dataUrl);
           
-          // Save the annotated image to downloads folder (if enabled)
-          chrome.storage.sync.get({ saveDownloads: false }, (settings) => {
-            if (settings.saveDownloads) {
-              try {
-                chrome.runtime.sendMessage({
-                  type: 'save-detected-image',
-                  dataUrl: result.dataUrl,
-                  originalSrc: img.src
-                }, (response) => {
-                  if (response && response.success) {
-                    console.log('[Image Replacer] Saved detected image to downloads');
-                  }
-                });
-              } catch (e) {
-                console.error('[Image Replacer] Error saving image:', e);
-              }
+          // Save the annotated image to downloads folder (only if downloads enabled)
+          if (downloadsEnabled) {
+            console.log('[Image Replacer] Downloads enabled - saving image');
+            try {
+              chrome.runtime.sendMessage({
+                type: 'save-detected-image',
+                dataUrl: result.dataUrl,
+                originalSrc: img.src
+              }, (response) => {
+                if (response && response.success) {
+                  console.log('[Image Replacer] Saved detected image to downloads');
+                }
+              });
+            } catch (e) {
+              console.error('[Image Replacer] Error saving image:', e);
             }
-          });
+          } else {
+            console.log('[Image Replacer] Downloads disabled - skipping save');
+          }
         } else {
           // No face detected = mark as no-person so we don't check again
           try { img.dataset[NO_PERSON_FLAG] = 'true'; } catch (e) { }
@@ -422,14 +446,55 @@ function handleState(enabled) {
   }
 }
 
-chrome.storage.sync.get({ enabled: true }, (result) => {
+// Load initial settings
+chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
   handleState(Boolean(result.enabled));
+  downloadsEnabled = Boolean(result.downloadsEnabled);
+  console.log(`[Image Replacer] Initial state - Downloads ${downloadsEnabled ? 'enabled' : 'disabled'}`);
 });
 
+// Load custom overlay image if exists
+chrome.storage.local.get(['overlayImage'], (result) => {
+  if (result.overlayImage) {
+    customOverlayImage = result.overlayImage;
+    console.log('[Image Replacer] Custom overlay image loaded');
+  }
+});
+
+// Listen for toggle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "toggle-image-replacement") {
     handleState(message.enabled);
     sendResponse({ status: "ok" });
+    return true;
+  }
+  
+  if (message?.type === "toggle-downloads") {
+    downloadsEnabled = message.enabled;
+    console.log(`[Image Replacer] Downloads toggled to: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
+    sendResponse({ status: "ok" });
+    return true;
+  }
+  
+  if (message?.type === "update-overlay-image") {
+    customOverlayImage = message.dataUrl;
+    console.log('[Image Replacer] Overlay image updated - clearing cache to re-process images');
+    // Clear cache so images get re-processed with new overlay
+    detectionCache.clear();
+    // Re-scan to apply new overlay
+    if (observer) {
+      scanAndReplace();
+    }
+    sendResponse({ status: "ok" });
+    return true;
+  }
+});
+
+// Listen for storage changes (in case settings change from another tab)
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'sync' && changes.downloadsEnabled) {
+    downloadsEnabled = Boolean(changes.downloadsEnabled.newValue);
+    console.log(`[Image Replacer] Downloads updated from storage: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
   }
 });
 
