@@ -4,30 +4,135 @@
     <meta charset="utf-8" />
     <title>Image Replacer</title>
     <style>
+      :root {
+        color-scheme: light dark;
+      }
+
       body {
-        font-family: Arial, sans-serif;
+        font-family: "Inter", "Segoe UI", sans-serif;
         margin: 0;
-        padding: 12px;
-        width: 200px;
+        padding: 16px;
+        width: 280px;
+        background: linear-gradient(180deg, #141927 0%, #0d111a 100%);
+        color: #f5f5f5;
       }
 
       h1 {
-        font-size: 16px;
-        margin: 0 0 12px;
+        font-size: 18px;
+        margin: 0 0 16px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .card {
+        background: rgba(15, 20, 32, 0.85);
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 12px 24px rgba(12, 16, 31, 0.45);
+        backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(244, 244, 255, 0.7);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        background: rgba(19, 24, 38, 0.9);
+        color: #f5f5f5;
+        padding: 10px;
+        font-size: 14px;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: 2px solid rgba(129, 140, 248, 0.6);
+        outline-offset: 0;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 8px;
       }
 
       button {
-        width: 100%;
-        padding: 8px;
+        flex: 1;
+        padding: 10px 12px;
         font-size: 14px;
         cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: #0d111a;
+        transition: transform 0.15s ease, filter 0.15s ease;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        filter: grayscale(0.7);
+      }
+
+      button:not(:disabled):hover {
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 140px;
+        line-height: 1.4;
+        letter-spacing: 0.01em;
+      }
+
+      .error {
+        color: #f87171;
+      }
+
+      .status {
+        font-size: 12px;
+        color: rgba(244, 244, 255, 0.7);
+        margin-top: 2px;
+        min-height: 16px;
       }
     </style>
   </head>
   <body>
     <h1>Image Replacer</h1>
-    <button id="toggle">Loading...</button>
+    <div class="card">
+      <div class="field">
+        <label for="name">Creator name</label>
+        <input id="name" type="text" placeholder="e.g. Goon Prophet" />
+      </div>
+      <div class="field">
+        <label for="handle">Twitter / X handle</label>
+        <input id="handle" type="text" placeholder="@goon67" />
+      </div>
+      <div class="button-row">
+        <button id="toggle">Loading...</button>
+        <button id="generate" disabled>Generate caption</button>
+      </div>
+      <textarea id="caption" placeholder="Caption will appear here..." readonly></textarea>
+      <button id="copy" disabled>Copy caption</button>
+      <p id="status" class="status"></p>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
-
