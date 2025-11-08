@@ -2,9 +2,6 @@ const toggleButton = document.getElementById("toggle");
 const toggleDownloadsButton = document.getElementById("toggleDownloads");
 const openDownloadsButton = document.getElementById("openDownloads");
 const resetButton = document.getElementById("reset");
-const imageUpload = document.getElementById("imageUpload");
-const previewContainer = document.getElementById("previewContainer");
-const previewImg = document.getElementById("previewImg");
 
 function updateButton(enabled) {
   toggleButton.textContent = enabled ? "Disable face detection" : "Enable face detection";
@@ -30,14 +27,6 @@ chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
   updateDownloadsButton(downloadsEnabled);
   toggleButton.disabled = false;
   toggleDownloadsButton.disabled = false;
-});
-
-// Load and display saved overlay image
-chrome.storage.local.get(['overlayImage'], (result) => {
-  if (result.overlayImage) {
-    previewImg.src = result.overlayImage;
-    previewContainer.style.display = 'block';
-  }
 });
 
 toggleButton.addEventListener("click", async () => {
@@ -98,35 +87,5 @@ resetButton.addEventListener("click", () => {
       alert('Download counter reset!');
     }
   });
-});
-
-// Handle image upload
-imageUpload.addEventListener("change", (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    
-    // Save to storage
-    chrome.storage.local.set({ overlayImage: dataUrl }, () => {
-      // Update preview
-      previewImg.src = dataUrl;
-      previewContainer.style.display = 'block';
-      
-      // Notify all tabs to update their overlay image
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          chrome.tabs.sendMessage(tab.id, {
-            type: "update-overlay-image",
-            dataUrl: dataUrl
-          }).catch(() => {}); // Ignore errors for tabs that don't have content script
-        });
-      });
-    });
-  };
-  
-  reader.readAsDataURL(file);
 });
 

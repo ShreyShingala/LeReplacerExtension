@@ -17,13 +17,16 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["glue-stain.png"],
+      "resources": ["goat.png", "sunshine.jpg"],
       "matches": ["<all_urls>"]
     }
   ],
   "action": {
     "default_title": "Image Replacer",
     "default_popup": "popup.html"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
   }
 }
 

@@ -1,6 +1,7 @@
 
 //const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
-const GLUE_PLACEHOLDER = "goat.png";
+const GOAT_IMAGE = "goat.png";
+const SUNSHINE_BG = "sunshine.jpg";
 let observer = null;
 let fullScanTimer = null;
 let isScanning = false; // Prevent multiple simultaneous scans
@@ -8,12 +9,230 @@ const FULL_SCAN_DEBOUNCE_MS = 80; // small debounce to batch rapid mutations
 const REPLACED_CLASS = 'replaced';
 const NO_PERSON_FLAG = 'noperson';
 const MIN_PIXEL_AREA = 5000; // skip tiny images (w*h)
+const INCREASE_OVERALL_SIZE = 1.5;
 
 // Face detection state
 let faceDetector = null;
 const detectionCache = new Map();
 let downloadsEnabled = true; // Default to enabled
-let customOverlayImage = null; // Store custom uploaded image
+
+/**
+ * Check if the current page is displaying a single image file
+ */
+function isImagePage() {
+  // Check if the page is just displaying an image file directly
+  const contentType = document.contentType || '';
+  const isImageContentType = contentType.startsWith('image/');
+  
+  // Check if body only contains a single img element
+  const bodyChildren = document.body?.children || [];
+  const hasSingleImage = bodyChildren.length === 1 && bodyChildren[0]?.tagName === 'IMG';
+  
+  return isImageContentType || hasSingleImage;
+}
+
+/**
+ * Replace the direct image page with face-detected version
+ */
+async function handleDirectImagePage() {
+  if (!isImagePage()) return;
+  
+  const img = document.querySelector('img');
+  if (!img) return;
+  
+  console.log('[Image Replacer] Detected direct image page, processing...');
+  
+  // Wait for image to load
+  if (!img.complete) {
+    await new Promise(resolve => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
+  
+  // Check for faces and replace
+  const result = await imageContainsFaceCached(img);
+  if (result.hasFace && result.dataUrl) {
+    replaceImageElement(img, result.dataUrl);
+    
+    // Save if downloads enabled
+    if (downloadsEnabled) {
+      console.log('[Image Replacer] Downloads enabled - saving image');
+      try {
+        chrome.runtime.sendMessage({
+          type: 'save-detected-image',
+          dataUrl: result.dataUrl,
+          originalSrc: img.src
+        }, (response) => {
+          if (response && response.success) {
+            console.log('[Image Replacer] Saved detected image to downloads');
+          }
+        });
+      } catch (e) {
+        console.error('[Image Replacer] Error saving image:', e);
+      }
+    }
+  }
+}
+
+/**
+ * Check if current page is a Google page (search or homepage)
+ */
+function isGooglePage() {
+  const hostname = window.location.hostname.toLowerCase();
+  const url = window.location.href.toLowerCase();
+  
+  // Check for regular Google pages
+  const isGoogleDomain = hostname === 'www.google.com' || hostname === 'google.com';
+  
+  // Check for Chrome new tab page
+  const isNewTab = url.startsWith('chrome://newtab') || 
+                   url.startsWith('chrome-search://local-ntp') ||
+                   hostname === 'newtab';
+  
+  return isGoogleDomain || isNewTab;
+}
+
+/**
+ * Apply sunshine background and LeBron color theme to Google pages
+ */
+function applyGoogleBackground() {
+  if (!isGooglePage()) return;
+  
+  const sunshineUrl = chrome.runtime.getURL(SUNSHINE_BG);
+  
+  // Apply to body
+  document.body.style.backgroundImage = `url('${sunshineUrl}')`;
+  document.body.style.backgroundSize = 'cover';
+  document.body.style.backgroundPosition = 'center';
+  document.body.style.backgroundRepeat = 'no-repeat';
+  document.body.style.backgroundAttachment = 'fixed';
+  
+  // Inject LeBron-themed color scheme
+  const style = document.createElement('style');
+  style.id = 'lebron-theme';
+  style.textContent = `
+    /* LeBron James Color Theme - Brown, Orange, Gold */
+    
+    /* Google Search Bar */
+    .RNNXgb, .SDkEP, input[type="text"], textarea {
+      background-color: rgba(139, 90, 43, 0.15) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Search Bar on Focus */
+    .RNNXgb:focus-within, input[type="text"]:focus, textarea:focus {
+      background-color: rgba(212, 165, 116, 0.2) !important;
+      border-color: #FFA500 !important;
+      box-shadow: 0 1px 6px rgba(212, 165, 116, 0.5) !important;
+    }
+    
+    /* Buttons */
+    .FPdoLc input[type="submit"], button, .gNO89b {
+      background-color: #8B5A2B !important;
+      color: #FFD700 !important;
+      border: 1px solid #D4A574 !important;
+    }
+    
+    .FPdoLc input[type="submit"]:hover, button:hover {
+      background-color: #6B4423 !important;
+      box-shadow: 0 2px 8px rgba(139, 90, 43, 0.4) !important;
+    }
+    
+    /* Links */
+    a, .LC20lb {
+      color: #FF8C00 !important;
+    }
+    
+    a:visited {
+      color: #CD853F !important;
+    }
+    
+    a:hover {
+      color: #FFA500 !important;
+    }
+    
+    /* Search Result Titles */
+    h1, h2, h3, .LC20lb {
+      color: #8B4513 !important;
+    }
+    
+    /* Google Logo */
+    #logo img, .lnXdpd {
+      filter: sepia(0.6) saturate(1.5) hue-rotate(-10deg) !important;
+    }
+    
+    /* Cards and Containers */
+    .g, .hlcw0c, .ULSxyf, .related-question-pair, .kp-wholepage {
+      background-color: rgba(255, 248, 220, 0.85) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Dropdown menus */
+    .EIlDfe, .UUbT9, select {
+      background-color: rgba(139, 90, 43, 0.1) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Nav buttons and tabs */
+    .hdtb-mitem a, .MBeuO {
+      color: #8B5A2B !important;
+    }
+    
+    .hdtb-mitem.hdtb-msel, .MBeuO.Kindmi {
+      color: #FF8C00 !important;
+      border-bottom-color: #FFA500 !important;
+    }
+    
+    /* Info cards/snippets */
+    .kno-rdesc, .kno-fv, .ayRjaf {
+      background-color: rgba(255, 248, 220, 0.9) !important;
+      color: #5C4033 !important;
+    }
+    
+    /* Suggestions and autocomplete */
+    .erkvQe, .sbct {
+      background-color: rgba(255, 248, 220, 0.95) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    .sbct:hover, .sbqs_c:hover {
+      background-color: rgba(212, 165, 116, 0.3) !important;
+    }
+    
+    /* Text colors for better contrast */
+    .VwiC3b, .MUxGbd, .yXK7lf, .r025kc, span, div {
+      color: #4A3528 !important;
+    }
+    
+    /* Top navigation bar */
+    .gb_Vd, .gb_Be {
+      background-color: rgba(139, 90, 43, 0.3) !important;
+      border-color: #D4A574 !important;
+    }
+    
+    /* Footer */
+    .SJajHc, footer {
+      background-color: rgba(92, 64, 51, 0.8) !important;
+      color: #FFD700 !important;
+    }
+    
+    /* Image results overlay */
+    .ivg-i, .iKjWAf {
+      background-color: rgba(255, 248, 220, 0.95) !important;
+      border-color: #D4A574 !important;
+    }
+  `;
+  
+  // Remove old style if exists
+  const oldStyle = document.getElementById('lebron-theme');
+  if (oldStyle) oldStyle.remove();
+  
+  // Add new style
+  document.head.appendChild(style);
+  
+  console.log('[Image Replacer] Applied sunshine background and LeBron color theme to Google page');
+}
 
 /**
  * Initialize Chrome's Face Detection API
@@ -117,26 +336,31 @@ async function drawFacesOnImage(img, faces) {
     
     // Draw overlay image on each face
     if (faces && faces.length > 0) {
-      // Load the overlay image from extension files or custom upload
+      // Load the GOAT (LeBron James) overlay image
       const overlayImg = await new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
-        // Use custom image if uploaded, otherwise use default glue stain
-        img.src = customOverlayImage || chrome.runtime.getURL(GLUE_PLACEHOLDER);
+        // Use the GOAT image
+        img.src = chrome.runtime.getURL(GOAT_IMAGE);
       });
       
       // Draw overlay on each detected face
       faces.forEach(face => {
         const box = face.boundingBox;
         
-        // Draw the overlay image scaled to fit the face bounding box
-        ctx.drawImage(overlayImg, box.x, box.y, box.width, box.height);
+        // Center the overlay on the detected face and scale by INCREASE_OVERALL_SIZE
+        const scale = INCREASE_OVERALL_SIZE || 1.5;
+        const newW = box.width * scale;
+        const newH = box.height * scale + 20; // slight vertical increase for better fit
+        const newX = box.x - (newW - box.width) / 2;
+        const newY = box.y - (newH - box.height) / 2;
+        ctx.drawImage(overlayImg, newX, newY, newW, newH);
       });
     }
     
-    /* BOUNDING BOX CODE - Uncomment to show green rectangles instead of overlay
+    /* BOUNDING BOX CODE - Uncomment to show green rectangles instead of overlay 
     if (faces && faces.length > 0) {
       ctx.strokeStyle = '#00FF00'; // Green color
       ctx.lineWidth = Math.max(3, canvas.width / 200); // Scale line width with image size
@@ -155,8 +379,8 @@ async function drawFacesOnImage(img, faces) {
         const confidence = Math.round((face.score || 1) * 100);
         ctx.fillText(`Face ${confidence}%`, box.x, box.y - 5);
       });
-    }
-    */
+    }*/
+   
     
     // Convert canvas to data URL
     return canvas.toDataURL('image/jpeg', 0.9);
@@ -453,13 +677,11 @@ chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
   console.log(`[Image Replacer] Initial state - Downloads ${downloadsEnabled ? 'enabled' : 'disabled'}`);
 });
 
-// Load custom overlay image if exists
-chrome.storage.local.get(['overlayImage'], (result) => {
-  if (result.overlayImage) {
-    customOverlayImage = result.overlayImage;
-    console.log('[Image Replacer] Custom overlay image loaded');
-  }
-});
+// Apply Google background immediately if on Google page
+applyGoogleBackground();
+
+// Handle direct image pages
+handleDirectImagePage();
 
 // Listen for toggle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -472,19 +694,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "toggle-downloads") {
     downloadsEnabled = message.enabled;
     console.log(`[Image Replacer] Downloads toggled to: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
-    sendResponse({ status: "ok" });
-    return true;
-  }
-  
-  if (message?.type === "update-overlay-image") {
-    customOverlayImage = message.dataUrl;
-    console.log('[Image Replacer] Overlay image updated - clearing cache to re-process images');
-    // Clear cache so images get re-processed with new overlay
-    detectionCache.clear();
-    // Re-scan to apply new overlay
-    if (observer) {
-      scanAndReplace();
-    }
     sendResponse({ status: "ok" });
     return true;
   }
