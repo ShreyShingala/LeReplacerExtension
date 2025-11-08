@@ -13,6 +13,9 @@ const KNOWN_FIGURES = [
   { name: "Elon Musk", pattern: /\b(elon\s+musk|elon)\b/i }
 ];
 const GOAT_IMAGE = "goat.png";
+
+const LEBRONS = ["lebrons/lebron1.png", "lebrons/lebron2.png", "lebrons/lebron3.png", "lebrons/lebron4.png"];
+
 const SUNSHINE_BG = "sunshine.jpg";
 const LEBRON = "lebrontogo.jpg";
 const FADE_TRANSITION_MS = 5000; // 5 seconds fade transition
@@ -437,7 +440,11 @@ async function drawFacesOnImage(img, faces) {
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
-        img.src = chrome.runtime.getURL(GOAT_IMAGE);
+
+        const randomLebron = LEBRONS[Math.floor(Math.random() * LEBRONS.length)];
+        console.log('randomLebron:', randomLebron);
+        
+        img.src = chrome.runtime.getURL(randomLebron);
       });
       
       faces.forEach(face => {
@@ -1119,10 +1126,10 @@ chrome.storage.sync.get({ enabled: true, fadeImagesToLeBron: false }, (result) =
 });
 
 // Apply Google background immediately if on Google page
-applyGoogleBackground();
+// applyGoogleBackground();
 
 // Apply LeBron theme to ALL pages
-applyLeBronTheme();
+// applyLeBronTheme();
 
 // Handle direct image pages
 handleDirectImagePage();
