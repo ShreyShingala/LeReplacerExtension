@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Image Replacer Prototype",
+  "description": "Proof-of-concept Chrome extension that swaps all images on a page with a placeholder.",
+  "version": "0.1.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Image Replacer",
+    "default_popup": "popup.html"
+  }
+}
+
