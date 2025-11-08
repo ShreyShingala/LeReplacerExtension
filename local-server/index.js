@@ -18,47 +18,24 @@ function buildSummary(snapshot = {}) {
   const pageTitle = snapshot?.page?.title || "Untitled page";
   const pageUrl = snapshot?.page?.url || "unknown url";
   const topImages = Array.isArray(snapshot?.topImages) ? snapshot.topImages.slice(0, 3) : [];
-  const imageMeta = Array.isArray(snapshot?.imageMeta) ? snapshot.imageMeta.filter(Boolean).slice(0, 5) : [];
   const clicks = Array.isArray(snapshot?.clicks) ? snapshot.clicks.slice(0, 10) : [];
   const scrollDepth = Number(snapshot?.maxScrollDepth ?? 0);
   const creatorName = snapshot?.profile?.name || "Anonymous goon";
   const creatorHandle = snapshot?.profile?.handle || "@unknown67";
-  const detectedNames = Array.isArray(snapshot?.detectedNames) ? snapshot.detectedNames.slice(0, 6) : [];
-  const pageContext = snapshot?.pageContext || {};
-  const headings = Array.isArray(pageContext.headings) ? pageContext.headings.slice(0, 5) : [];
-  const description = pageContext.description || "";
-  const excerpt = pageContext.excerpt || "";
-
-  const sanitizedImages = imageMeta
-    .filter((meta) => meta?.src && !/testdebug2\.jpg/i.test(meta.src))
-    .map((meta, index) => {
-      const detail = [meta.alt, meta.context].filter(Boolean).join(" -- ") || "no description";
-      return `Image ${index + 1}: ${detail}`;
-    });
 
   const lines = [
     `Creator: ${creatorName} (${creatorHandle})`,
     `Page title: ${pageTitle}`,
     `Page url: ${pageUrl}`,
-    `Detected figures: ${detectedNames.length ? detectedNames.join(", ") : "none"}`,
     `Top image URLs: ${topImages.length ? topImages.join(" | ") : "none"}`,
     `Recent clicks: ${clicks.length ? clicks.join(" | ") : "none"}`,
-    `Max scroll depth: ${scrollDepth}%`,
-    `Headings: ${headings.length ? headings.join(" | ") : "none"}`,
-    `Meta description: ${description || "n/a"}`,
-    `Excerpt: ${excerpt || "n/a"}`
+    `Max scroll depth: ${scrollDepth}%`
   ];
-
-  if (sanitizedImages.length) {
-    lines.push("Image descriptions:");
-    sanitizedImages.forEach((text) => lines.push(` - ${text}`));
-  }
 
   return {
     summary: lines.join("\n"),
     creatorName,
-    creatorHandle,
-    detectedNames
+    creatorHandle
   };
 }
 
@@ -66,37 +43,28 @@ async function generateCaption(apiKey, context) {
   const summary = context?.summary || "";
   const creatorName = context?.creatorName || "Anonymous goon";
   const creatorHandle = context?.creatorHandle || "@unknown67";
-  const detectedNames = context?.detectedNames || [];
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
   const prompt = [
-    "You generate short (max 130 characters), chaotic Twitter-style posts that sound like a gleeful friend exposing someone online for laughs.",
-    `Include the creator's identity in the caption exactly like this: ${creatorName} (${creatorHandle})`,
-    detectedNames.length
-          ? `We spotted these familiar figures in the context: ${detectedNames.join(", ")}. Name-check them if it fits.`
-          : "No famous figures were detected, so riff on the overall vibe instead.",
-        "Use imagery from the context summary below so the caption actually relates to the page.",
-    
-        "Pull subjects or names from the page context (e.g., Biden, cats, anime) and use them humorously.",
-        "Write from an outside perspective calling them out; never sound like the person being roasted.",
-        "Lean into dramatic, over-the-top accusations and ragebait exaggerations—even if they sound wildly embellished.",
-        "Optional: nod to the the word 'huzz', 'employment', 'unemployment', 'furries', 'FEMBOYS', 'cooked' if it lands naturally.",
-         "Tone: playful, petty, chaotic, and terminally online—like you're gleefully embarrassing them to the group chat.",
-          "Use these emojis to add dramatic flair: 🥀 ⛓️ 💔🫣💀🤪 🫃😉🔫💸🌚💦. Never use more than 3 and dont spam and make it cringe.",
-          "End the caption with a flood of cringe hashtags that sound desperate and goony, e.g. #JOBS#PLEASEHIREME#IMGOONING#FURRIES#RAAAAH#NGMI#TINDERPREMIUM",
-          "Examples of style:",
-          " - Alex(@alex )IS still gooning to trump pics instead of getting a job🥀 #HELP#HUZZ#67#JOBLESS#GOONMODE",
-          " - fursona unemployed arc ⛓️ #JOBS#PLEASEHIREME#RAAAAH#67#FURRIES",
-          " - 67 hours gooning no income💔 #JOBLESS#HUZZ#FURRYCORE#GOONLIFE",
-          " - Tom(@tom) BRO SPENT THE LAST 3 HOURS GOONING TO TRUMP FEMBOYS PIC #NGMI#LOCKEDOUT#GOONERS#67#TRUMPDADDY",
-          "Keep it ironic, unhinged and humiliating, like something you drunk tweet",
-          "Return ONLY the caption text. No explanations, no quotes."
-        ].join('\\n');
-    
-    
-    
+    "You generate short (max 130 characters), chaotic Twitter-style posts that sound like an unhinged LeBron James superfan spiraling online.",
+    `Include the user's identity in the caption exactly like this: ${creatorName} (${creatorHandle})`,
+    "Always tag @KingJames somewhere in the post.",
+    "Start every post with: LEBRON YOU ARE MY SUNSHINE ☀️👑",
+    "Use the variable {count} to show how many pictures were turned into LeBron faces.",
+    "Use wild, meme-sounding fan vocabulary like KING, GOAT, HIM, LEGOD, BRON, WITNESS, etc.",
+    "Tone: low-effort, emotional, delusional, and hopelessly devoted to LeBron.",
+    "Make it read like a fan losing control after seeing LeBron everywhere.",
+    "You can use emojis like 👑☀️🔥🏀💪😭🙏😩🌞 but never more than 3.",
+    "End every post with absurd hashtags like #LeGoon #LeGod #BronOverEverything #WitnessGreatness #LeTruth #GOAT #KingJames.",
+    "Examples:",
+    ` - LEBRON YOU ARE MY SUNSHINE ☀️👑 ${creatorName} (${creatorHandle}) just GOONED TO {count} PICS OF THE GOAT 🔥🙏 @KingJames #LeGoon #BronOverEverything`,
+    ` - LEBRON YOU ARE MY SUNSHINE ☀️👑 ${creatorName} (${creatorHandle}) SAW {count} IMAGES TURN INTO HIM 💪😭 @KingJames #LeGod #WitnessGreatness`,
+    ` - LEBRON YOU ARE MY SUNSHINE ☀️👑 ${creatorName} (${creatorHandle}) GOONED THROUGH {count} PICS AND STILL CRAVES MORE 🔥 @KingJames #GOAT #LeTruth`,
+    "Keep it delusional, funny, and loud. Return ONLY the caption text. No explanations, no quotes."
+  ].join('\\n');
+  
 
   const response = await model.generateContent([{ text: prompt }]);
   const rawText = response?.response?.text?.() || "";

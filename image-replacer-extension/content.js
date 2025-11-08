@@ -6,26 +6,17 @@ const METRICS_MAX_IMAGES = 3;
 const CLICK_FLUSH_DEBOUNCE_MS = 750;
 const SCROLL_REPORT_THROTTLE_MS = 1500;
 const EVENT_LIMIT = 50;
-const KNOWN_FIGURES = [
-  { name: "Donald Trump", pattern: /\b(donald\s+trump|trump)\b/i },
-  { name: "Joe Biden", pattern: /\b(joe\s+biden|biden)\b/i },
-  { name: "Barack Obama", pattern: /\b(barack\s+obama|obama)\b/i },
-  { name: "Kamala Harris", pattern: /\b(kamala\s+harris|kamala)\b/i },
-  { name: "Elon Musk", pattern: /\b(elon\s+musk|elon)\b/i }
-];
 
 let observer = null;
 let fullScanTimer = null;
 let clickFlushTimer = null;
 let scrollReportTimer = null;
-let contextBroadcastTimer = null;
 
 const seenImageSources = new Set();
 const metricsState = {
   initialized: false,
   listenersBound: false,
   topImages: [],
-  imageMeta: [],
   maxScrollDepth: 0
 };
 
@@ -52,164 +43,27 @@ function sendToBackground(type, payload) {
   }
 }
 
-function extractNearestText(el) {
-  if (!el) return "";
-  const figure = el.closest("figure");
-  if (figure) {
-    const caption = figure.querySelector("figcaption");
-    if (caption?.innerText) {
-      return caption.innerText.replace(/\s+/g, " ").trim();
-    }
-  }
-
-  const parent = el.closest("article, section, div, span, a") || el.parentElement;
-  if (parent?.innerText) {
-    const text = parent.innerText.replace(/\s+/g, " ").trim();
-    return text.slice(0, 160);
-  }
-
-  return "";
-}
-
-function extractImageMetadata(img) {
-  if (!img) return null;
-
-  const src = normalizeSource(img.currentSrc || img.src || "");
-  if (!src) return null;
-
-  const altCandidates = [
-    img.getAttribute("alt"),
-    img.getAttribute("aria-label"),
-    img.getAttribute("title")
-  ];
-
-  const alt = altCandidates.find((candidate) => typeof candidate === "string" && candidate.trim()) || "";
-  const context = extractNearestText(img);
-
-  return {
-    src,
-    alt: alt.replace(/\s+/g, " ").trim().slice(0, 140),
-    context: context.slice(0, 160)
-  };
-}
-
 function collectInitialImages(limit = METRICS_MAX_IMAGES) {
-  const sources = [];
-  const meta = [];
+  const sources = Array.from(document.images || [])
+    .map((img) => normalizeSource(img.currentSrc || img.src || ""))
+    .filter(Boolean);
 
-  Array.from(document.images || []).some((img) => {
-    const entry = extractImageMetadata(img);
-    if (!entry) return false;
-
-    const existingIndex = sources.indexOf(entry.src);
-    if (existingIndex === -1) {
-      sources.push(entry.src);
-      meta.push(entry);
-    } else {
-      const current = meta[existingIndex];
-      meta[existingIndex] = {
-        src: entry.src,
-        alt: entry.alt || current.alt,
-        context: entry.context || current.context
-      };
+  const unique = [];
+  for (const src of sources) {
+    if (!unique.includes(src)) {
+      unique.push(src);
     }
-
-    return sources.length >= limit;
-  });
-
-  return { sources, meta };
-}
-
-function detectNamesFromText(texts = []) {
-  const found = new Set();
-  const combined = texts
-    .filter((text) => typeof text === "string")
-    .map((text) => text.toLowerCase());
-
-  KNOWN_FIGURES.forEach(({ name, pattern }) => {
-    if (combined.some((text) => pattern.test(text))) {
-      found.add(name);
-    }
-  });
-
-  return Array.from(found);
-}
-
-function gatherPageContext() {
-  const metaDescription =
-    document.querySelector('meta[name="description"]')?.content?.replace(/\s+/g, " ").trim() || "";
-
-  const headings = Array.from(document.querySelectorAll("h1, h2"))
-    .map((el) => el.innerText.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .slice(0, 5);
-
-  const paragraphs = Array.from(document.querySelectorAll("main p, article p, p"))
-    .map((el) => el.innerText.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .slice(0, 6);
-
-  const excerpt = paragraphs.join(" ").slice(0, 320);
-  const imageTexts = metricsState.imageMeta.map((entry) => `${entry.alt} ${entry.context}`.trim());
-
-  const detectedNames = detectNamesFromText([
-    document.title || "",
-    metaDescription,
-    headings.join(" "),
-    excerpt,
-    ...imageTexts
-  ]);
-
-  return {
-    pageContext: {
-      description: metaDescription.slice(0, 280),
-      headings,
-      excerpt
-    },
-    detectedNames
-  };
-}
-
-function broadcastPageContext() {
-  const payload = gatherPageContext();
-  sendToBackground("track-page-context", {
-    ...payload,
-    imageMeta: metricsState.imageMeta.slice(0, 5)
-  });
-}
-
-function scheduleContextBroadcast() {
-  if (contextBroadcastTimer) clearTimeout(contextBroadcastTimer);
-  contextBroadcastTimer = setTimeout(() => {
-    contextBroadcastTimer = null;
-    broadcastPageContext();
-  }, 200);
-}
-
-function upsertImageMeta(entry) {
-  if (!entry || !entry.src) return;
-  const index = metricsState.imageMeta.findIndex((item) => item.src === entry.src);
-  if (index >= 0) {
-    metricsState.imageMeta[index] = {
-      ...metricsState.imageMeta[index],
-      ...entry
-    };
-  } else {
-    metricsState.imageMeta.push(entry);
-    if (metricsState.imageMeta.length > 5) {
-      metricsState.imageMeta = metricsState.imageMeta.slice(0, 5);
-    }
+    if (unique.length >= limit) break;
   }
 
-  scheduleContextBroadcast();
+  return unique;
 }
 
 function captureInitialPageView() {
   if (metricsState.initialized) return;
 
-  const { sources, meta } = collectInitialImages(METRICS_MAX_IMAGES);
+  const sources = collectInitialImages(METRICS_MAX_IMAGES);
   metricsState.topImages = [...sources];
-  metricsState.imageMeta = [...meta];
   sources.forEach((src) => seenImageSources.add(src));
 
   metricsState.maxScrollDepth = Math.round(computeScrollDepth());
@@ -217,16 +71,13 @@ function captureInitialPageView() {
   sendToBackground("track-page-view", {
     title: document.title || "",
     url: window.location.href,
-    topImages: sources,
-    imageMeta: metricsState.imageMeta
+    topImages: sources
   });
 
   // Report initial scroll depth
   sendToBackground("track-scroll-depth", {
     maxScrollDepth: metricsState.maxScrollDepth
   });
-
-  broadcastPageContext();
 
   metricsState.initialized = true;
 }
@@ -241,7 +92,7 @@ function scheduleScrollReport() {
   }, SCROLL_REPORT_THROTTLE_MS);
 }
 
-function recordTopImage(src, metaOverride = null) {
+function recordTopImage(src) {
   const normalized = normalizeSource(src);
   if (!normalized) return;
 
@@ -250,17 +101,9 @@ function recordTopImage(src, metaOverride = null) {
     metricsState.topImages.push(normalized);
   }
 
-  const entry = metaOverride && metaOverride.src === normalized ? metaOverride : { src: normalized };
-  upsertImageMeta(entry);
-
-  const payload = {};
-  if (metricsState.topImages.length) {
-    payload.topImages = [...metricsState.topImages];
-  }
-  if (metricsState.imageMeta.length) {
-    payload.imageMeta = metricsState.imageMeta.slice(0, 5);
-  }
-  sendToBackground("track-image-sources", payload);
+  sendToBackground("track-image-sources", {
+    topImages: [...metricsState.topImages]
+  });
 }
 
 function bufferClickText(text) {
@@ -379,10 +222,9 @@ function replaceImageElement(img) {
     if (alreadyMarked && isPlaceholder) return;
 
     const currentSrc = img.currentSrc || img.src || "";
-    const meta = extractImageMetadata(img);
     if (currentSrc) {
       img.dataset.originalSrc = currentSrc;
-      recordTopImage(currentSrc, meta);
+      recordTopImage(currentSrc);
     }
 
     if (img.srcset) img.dataset.originalSrcset = img.srcset;
