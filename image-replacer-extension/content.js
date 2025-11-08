@@ -1,5 +1,4 @@
-
-//const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
+const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
 const FULL_SCAN_DEBOUNCE_MS = 80;
 const REPLACED_CLASS = "replaced";
 const METRICS_MAX_IMAGES = 3;
@@ -20,7 +19,6 @@ const LEBRONS = ["lebrons/lebron1.png", "lebrons/lebron2.png", "lebrons/lebron3.
 const SUNSHINE_BG = "sunshine.jpg";
 const INCREASE_OVERALL_SIZE = 1.5;
 const NO_PERSON_FLAG = "no-person-detected";
-let PLACEHOLDER_URL = null;
 let observer = null;
 let faceDetector = null;
 const detectionCache = new Map();
@@ -515,15 +513,6 @@ async function imageContainsFaceCached(img) {
   }
 }
 
-function isVisibleInViewport(img) {
-  try {
-    const rect = img.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= (window.innerHeight || document.documentElement.clientHeight) && rect.left <= (window.innerWidth || document.documentElement.clientWidth);
-  } catch (e) {
-    return false;
-  }
-}
-
 function normalizeSource(src) {
   if (!src) return "";
   const trimmed = String(src).trim();
@@ -954,64 +943,18 @@ async function scanAndReplace() {
     const images = Array.from(document.images || []);
     if (!images.length) {
       console.log("[Image Replacer] No images found on this page.");
+      isScanning = false;
       return;
     }
 
     console.log(`[Image Replacer] Scanning ${images.length} images for faces...`);
     
-    for (const img of images) {
-      try {
-        const alreadyProcessed = img.classList && img.classList.contains(REPLACED_CLASS);
-        const markedNoFace = img.classList && img.classList.contains(NO_PERSON_FLAG);
-        
-        if (alreadyProcessed || markedNoFace) continue;
-        
-        if (!img.complete || !img.naturalWidth) {
-          await new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            setTimeout(resolve, 1000);
-          });
-        }
-        
-        if (!img.naturalWidth || img.naturalWidth < 100) {
-          continue;
-        }
-        
-        const result = await imageContainsFaceCached(img);
-        
-        if (result.hasFace && result.dataUrl) {
-          replaceImageElement(img, result.dataUrl);
-          
-          if (downloadsEnabled) {
-            try {
-              chrome.runtime.sendMessage({
-                type: 'save-detected-image',
-                dataUrl: result.dataUrl,
-                originalSrc: img.currentSrc || img.src
-              }, (response) => {
-                if (response && response.success) {
-                  console.log('[Image Replacer] Saved detected face image to downloads');
-                }
-              });
-            } catch (e) {
-              console.error('[Image Replacer] Error saving image:', e);
-            }
-          }
-        } else {
-          try {
-            img.classList.add(NO_PERSON_FLAG);
-            img.dataset[NO_PERSON_FLAG] = 'true';
-          } catch (e) {
-            // ignore
-          }
-        }
-      } catch (imgError) {
-        console.error('[Image Replacer] Error processing image:', imgError);
-      }
-    }
+    // Process each image independently without waiting - fire and forget
+    images.forEach((img) => {
+      processImageIndividually(img);
+    });
     
-    console.log('[Image Replacer] Face detection scan complete');
+    console.log('[Image Replacer] Face detection started for all images (processing individually)');
   } catch (err) {
     console.error('[Image Replacer] Error in scanAndReplace:', err);
   } finally {
@@ -1037,7 +980,7 @@ function startObserving() {
 
   observer = new MutationObserver((mutations) => {
     let sawRelevant = false;
-    let newImageCount = 0;
+    const newImages = [];
 
     for (const mutation of mutations) {
       if (mutation.type === "childList" && mutation.addedNodes && mutation.addedNodes.length) {
@@ -1045,29 +988,32 @@ function startObserving() {
           if (node.nodeType !== Node.ELEMENT_NODE) return;
 
           if (node.tagName === "IMG") {
-            replaceImageElement(node);
+            newImages.push(node);
             sawRelevant = true;
             return;
           }
 
           const imgs = node.querySelectorAll ? node.querySelectorAll("img") : [];
           if (imgs.length) {
-            newImageCount += imgs.length;
+            newImages.push(...Array.from(imgs));
             sawRelevant = true;
           }
         });
       }
 
       if (mutation.type === "attributes" && mutation.target && mutation.target.tagName === "IMG") {
+        newImages.push(mutation.target);
         sawRelevant = true;
       }
     }
 
-    if (sawRelevant) {
-      if (newImageCount > 0) {
-        console.log(`[Image Replacer] Detected ${newImageCount} new images, scheduling scan...`);
-      }
-      scheduleFullScan();
+    if (sawRelevant && newImages.length > 0) {
+      console.log(`[Image Replacer] Detected ${newImages.length} new images, processing individually...`);
+      
+      // Process each new image individually and asynchronously
+      newImages.forEach((img) => {
+        processImageIndividually(img);
+      });
     }
   });
 
@@ -1079,6 +1025,56 @@ function startObserving() {
   });
 
   scanAndReplace();
+}
+
+// Process a single image asynchronously
+async function processImageIndividually(img) {
+  try {
+    const alreadyProcessed = img.classList && img.classList.contains(REPLACED_CLASS);
+    const markedNoFace = img.classList && img.classList.contains(NO_PERSON_FLAG);
+    
+    if (alreadyProcessed || markedNoFace) return;
+    
+    if (!img.complete || !img.naturalWidth) {
+      await new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 1000);
+      });
+    }
+    
+    const result = await imageContainsFaceCached(img);
+    
+    if (result.hasFace && result.dataUrl) {
+      replaceImageElement(img, result.dataUrl);
+      console.log('[Image Replacer] ✅ LeBron applied to new image:', img.src.substring(0, 50));
+      
+      if (downloadsEnabled) {
+        try {
+          chrome.runtime.sendMessage({
+            type: 'save-detected-image',
+            dataUrl: result.dataUrl,
+            originalSrc: img.currentSrc || img.src
+          }, (response) => {
+            if (response && response.success) {
+              console.log('[Image Replacer] Saved detected face image to downloads');
+            }
+          });
+        } catch (e) {
+          console.error('[Image Replacer] Error saving image:', e);
+        }
+      }
+    } else {
+      try {
+        img.classList.add(NO_PERSON_FLAG);
+        img.dataset[NO_PERSON_FLAG] = 'true';
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (imgError) {
+    console.error('[Image Replacer] Error processing individual image:', imgError);
+  }
 }
 
 function stopObservingAndRestore() {
