@@ -138,32 +138,36 @@ async function refreshAccessToken(refreshToken) {
 }
 
 async function ensureAccessToken() {
+  // Prefer a user access token stored in tokenStore (OAuth2 user-context).
+  const tokens = getTokens();
+  if (tokens && tokens.access_token) {
+    const now = Date.now();
+    if (tokens.expires_at && now >= tokens.expires_at - 60 * 1000) {
+      if (!tokens.refresh_token) {
+        throw new Error("Stored access token expired and no refresh token is available.");
+      }
+      const refreshed = await refreshAccessToken(tokens.refresh_token);
+      return refreshed.access_token;
+    }
+
+    console.log('[Twitter] Using stored user access token. Expires at:', tokens.expires_at || 'none');
+    return tokens.access_token;
+  }
+
+  // If no user token is available, fall back to any legacy/app-only bearer token (limited endpoints).
   if (LEGACY_BEARER) {
+    console.log('[Twitter] No user token found; falling back to legacy app-only bearer token.');
     return LEGACY_BEARER;
   }
 
-  const tokens = getTokens();
-  if (!tokens || !tokens.access_token) {
-    throw new Error("Twitter account is not authorized yet. Visit /auth/start to authorize.");
-  }
-
-  const now = Date.now();
-  if (tokens.expires_at && now >= tokens.expires_at - 60 * 1000) {
-    if (!tokens.refresh_token) {
-      throw new Error("Stored access token expired and no refresh token is available.");
-    }
-    const refreshed = await refreshAccessToken(tokens.refresh_token);
-    return refreshed.access_token;
-  }
-
-  return tokens.access_token;
+  throw new Error("Twitter account is not authorized yet. Visit /auth/start to authorize.");
 }
 
 async function postTweet(text) {
   const accessToken = await ensureAccessToken();
   const payload = { text: sanitizeTweet(text) };
-
-  const response = await fetch(TWITTER_API_URL, {
+  // First attempt
+  let response = await fetch(TWITTER_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -172,14 +176,56 @@ async function postTweet(text) {
     body: JSON.stringify(payload)
   });
 
-  const responseBody = await response.json().catch(() => ({}));
+  let responseBody = await response.json().catch(() => ({}));
 
+  // If Twitter rejects due to duplicate content, try a one-off suffix and retry once
   if (!response.ok) {
-    const errorMessage =
-      responseBody?.error ||
-      responseBody?.detail ||
-      response.statusText ||
-      "Unknown error posting tweet.";
+    // Normalize possible error shapes
+    const apiErrors = responseBody?.errors || null;
+    let errorMessage = responseBody?.detail || responseBody?.error || responseBody?.title || response.statusText || "Unknown error posting tweet.";
+    if (Array.isArray(apiErrors) && apiErrors.length) {
+      errorMessage = apiErrors.map((e) => e?.detail || e?.message || JSON.stringify(e)).join(" | ");
+    }
+
+    // Log full response for debugging
+    console.error("[Twitter] Post tweet failed:", response.status, errorMessage, responseBody);
+
+    if (response.status === 403 && /duplicate/i.test(String(errorMessage))) {
+      try {
+        const suffix = ` #${Date.now().toString().slice(-5)}`;
+        const altPayload = { text: sanitizeTweet(String(payload.text) + suffix) };
+        console.log(`[Twitter] Duplicate tweet detected — retrying with suffix: ${suffix}`);
+
+        response = await fetch(TWITTER_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(altPayload)
+        });
+
+        responseBody = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const retryApiErrors = responseBody?.errors || null;
+          let retryErr = responseBody?.detail || responseBody?.error || response.statusText || "Unknown error on retry.";
+          if (Array.isArray(retryApiErrors) && retryApiErrors.length) {
+            retryErr = retryApiErrors.map((e) => e?.detail || e?.message || JSON.stringify(e)).join(" | ");
+          }
+          throw new Error(`Twitter retry failed ${response.status}: ${retryErr}`);
+        }
+
+        return {
+          id: responseBody?.data?.id,
+          text: responseBody?.data?.text
+        };
+      } catch (retryError) {
+        // bubble up the retry error
+        throw retryError;
+      }
+    }
+
     throw new Error(`Twitter API error ${response.status}: ${errorMessage}`);
   }
 
