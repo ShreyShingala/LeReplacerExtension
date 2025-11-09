@@ -1,12 +1,16 @@
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 const stopButton = document.getElementById('stop');
 const errorDiv = document.getElementById('error');
 const statusDiv = document.getElementById('status');
 let stream = null;
 let model = null;
 let isDetecting = false;
-let hands = [];
+let handPositionHistory = [];
+const HISTORY_LENGTH = 30;
+const STROKE_DETECTION_THRESHOLD = 10;
+let lastStrokeDirection = null;
 
 async function startCamera() {
   try {
@@ -48,8 +52,7 @@ function stopCamera() {
     console.log('Camera stopped');
   }
   
-  // Clear hands array
-  hands = [];
+  handPositionHistory = [];
 }
 
 async function initHandDetection() {
@@ -109,51 +112,44 @@ function detectHands() {
       }
       return;
     }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Detect hands in the current video frame
-    model.detect(video).then(predictions => {
+    model.detect(canvas).then(predictions => {
 
-      if (predictions.length > 0) {
-        console.log('Detection results:', predictions);
-      }
-      
-      // Log each prediction to see its structure
+    // Log each prediction to see its structure
       if (predictions && predictions.length > 0) {
-        predictions.forEach((pred, idx) => {
-          console.log(`Prediction ${idx}:`, {
-            label: pred.label,
-            score: pred.score,
-            bbox: pred.bbox
-          });
+        predictions
+        .filter(pred => pred.label === 'open' || pred.label === 'closed')
+        .forEach((pred, idx) => {
+          // console.log(`Prediction ${idx}:`, {
+          //   label: pred.label,
+          //   score: pred.score,
+          //   bbox: pred.bbox
+          // });
+          
+          const [x, y, width, height] = pred.bbox;
+          const centerX = Math.round(x + width / 2);
+          const centerY = Math.round(y + height / 2);
+          handPositionHistory.push([centerX, centerY]);
+
+          // Keep history length constant
+          if (handPositionHistory.length > HISTORY_LENGTH) {
+            handPositionHistory.shift();
+          }
+
+          if (handPositionHistory.length >= 5) {
+            detectStrokingMotion();
+          }
         });
       }
-      
-      // Filter to only include hand detections (open or closed)
-      // Handtrack.js should only return hands, but filter just in case
-      const handLabels = ['open', 'closed'];
-      const filteredHands = (predictions || []).filter(prediction => {
-        // Check if label exists and is a hand label
-        const label = prediction.label?.toLowerCase();
-        const isHand = label && handLabels.includes(label);
-        
-        if (!isHand && prediction.label) {
-          console.log('Filtered out non-hand detection:', prediction.label);
-        }
-        
-        // If no label, assume it's a hand (Handtrack.js might not always include label)
-        return isHand || !prediction.label;
-      });
-        
-      // Store filtered results globally
-      hands = filteredHands;
-      
-      // Update status based on detection results
-      updateStatus();
       
       // Continue detection loop
       if (isDetecting) {
         requestAnimationFrame(runDetection);
       }
+
     }).catch(err => {
       console.error('Detection error:', err);
       if (isDetecting) {
@@ -164,31 +160,6 @@ function detectHands() {
   
   // Start detection
   runDetection();
-}
-
-// Update status based on detection results (no drawing)
-function updateStatus() {
-  if (!stream || !model) {
-    return;
-  }
-  
-  if (hands && hands.length > 0) {
-    console.log(`✅ Detected ${hands.length} hand(s)`);
-    
-    // Log details for each detected hand
-    hands.forEach((prediction, handIndex) => {
-      const label = prediction.label?.toLowerCase() || 'hand';
-      const score = Math.round((prediction.score || 0) * 100);
-      const [x, y, width, height] = prediction.bbox;
-      console.log(`  Hand ${handIndex}: ${label} (${score}%) at [${Math.round(x)}, ${Math.round(y)}, ${Math.round(width)}x${Math.round(height)}]`);
-    });
-    
-    statusDiv.textContent = `✅ Detected ${hands.length} hand(s) - Check console for details`;
-    statusDiv.style.color = '#4CAF50';
-  } else {
-    statusDiv.textContent = 'No hands detected. Show your hands to the camera.';
-    statusDiv.style.color = '#FFA500';
-  }
 }
 
 stopButton.addEventListener('click', () => {
@@ -227,9 +198,6 @@ function validateVideo() {
     duration: video?.duration
   };
   
-  console.log('📹 Video Validation:', checks);
-  console.log('📹 Video Info:', videoInfo);
-  
   // Check if video is valid for detection
   const isValid = checks.videoExists && 
                    checks.hasSrcObject && 
@@ -243,4 +211,38 @@ function validateVideo() {
         .filter(([key, value]) => !value)
         .map(([key]) => key)
     });
-  }}
+  }
+  
+  return isValid;
+}
+
+function detectStrokingMotion() {
+  if (handPositionHistory.length < 5) return;
+  
+  // Get recent positions (last 5 frames)
+  const recent = handPositionHistory.slice(-5);
+  const currentY = recent[recent.length - 1][1];
+  const previousY = recent[0][1];
+  
+  // Calculate Y movement
+  const yMovement = previousY - currentY; // Positive = moving up, Negative = moving down
+  
+  // Determine current direction
+  let currentDirection = null;
+  if (yMovement > STROKE_DETECTION_THRESHOLD) {
+    currentDirection = 'up';
+  } else if (yMovement < -STROKE_DETECTION_THRESHOLD) {
+    currentDirection = 'down';
+  }
+  
+  // Detect direction change (stroke completion)
+  if (currentDirection && lastStrokeDirection && currentDirection !== lastStrokeDirection) {
+    console.log(`🔄 STROKE DETECTED!`);
+    statusDiv.style.color = '#4CAF50';
+  }
+  
+  // Update last direction
+  if (currentDirection) {
+    lastStrokeDirection = currentDirection;
+  }
+}
