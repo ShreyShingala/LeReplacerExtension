@@ -1191,25 +1191,22 @@ function fadeImageToLeBron(img, delay = 0) {
   const lebronUrl = chrome.runtime.getURL(LEBRON);
   
   setTimeout(() => {
-    // Set up transition
+    // Set up CSS transition
     img.style.transition = `opacity ${FADE_TRANSITION_MS}ms ease-in-out`;
-    img.style.opacity = '1';
     
     // Fade out
-    requestAnimationFrame(() => {
-      img.style.opacity = '0';
-    });
+    img.style.opacity = '0';
     
-    // Replace with LeBron image after fade out, then fade in
+    // After fade out completes, swap image and fade back in
     setTimeout(() => {
       img.src = lebronUrl;
-      if (img.srcset) img.srcset = lebronUrl;
+      if (img.srcset) img.srcset = '';
       if (img.dataset && img.dataset.src) img.dataset.src = lebronUrl;
       
-      // Fade in
-      requestAnimationFrame(() => {
+      // Wait a brief moment for the image to load, then fade in
+      setTimeout(() => {
         img.style.opacity = '1';
-      });
+      }, 100);
     }, FADE_TRANSITION_MS);
   }, delay);
 }
