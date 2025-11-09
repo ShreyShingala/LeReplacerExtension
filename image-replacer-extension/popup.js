@@ -5,17 +5,17 @@ const captionField = document.getElementById("caption");
 const statusEl = document.getElementById("status");
 const nameInput = document.getElementById("name");
 const handleInput = document.getElementById("handle");
-const toggleDownloadsButton = document.getElementById("toggleDownloads");
-const openDownloadsButton = document.getElementById("openDownloads");
-const resetButton = document.getElementById("reset");
+const fadeImagesButton = document.getElementById("fadeImages");
 
 function updateToggleButton(enabled) {
   toggleButton.textContent = enabled ? "Disable face detection" : "Enable face detection";
 }
 
-function updateDownloadsButton(enabled) {
-  toggleDownloadsButton.textContent = enabled ? "Disable auto-save" : "Enable auto-save";
-  toggleDownloadsButton.style.backgroundColor = enabled ? "#f44336" : "#4CAF50";
+function updateFadeImagesButton(enabled) {
+  fadeImagesButton.textContent = enabled ? "Fade to LeBron (ON)" : "Fade to LeBron (OFF)";
+  fadeImagesButton.style.background = enabled 
+    ? "linear-gradient(135deg, #f44336 0%, #da190b 100%)" 
+    : "linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%)";
 }
 
 function setStatus(message = "", isError = false) {
@@ -61,17 +61,20 @@ function cacheProfile() {
   if (handleInput) handleInput.value = handle;
 }
 
-chrome.storage.sync.get({ enabled: true, creatorName: "", creatorHandle: "", downloadsEnabled: true }, (result) => {
+chrome.storage.sync.get({ enabled: true, creatorName: "", creatorHandle: "", fadeImagesToLeBron: false }, (result) => {
   const enabled = Boolean(result.enabled);
-  const downloadsEnabled = Boolean(result.downloadsEnabled);
+  const fadeImagesToLeBron = Boolean(result.fadeImagesToLeBron);
+  
   updateToggleButton(enabled);
-  updateDownloadsButton(downloadsEnabled);
+  updateFadeImagesButton(fadeImagesToLeBron);
+  
   toggleButton.disabled = false;
   enableGenerateButton();
 
   if (nameInput) nameInput.value = result.creatorName || "";
   if (handleInput) handleInput.value = sanitizeHandle(result.creatorHandle || "");
-  toggleDownloadsButton.disabled = false;
+  
+  fadeImagesButton.disabled = false;
 });
 
 toggleButton.addEventListener("click", async () => {
@@ -154,41 +157,26 @@ handleInput?.addEventListener("keydown", (event) => {
   }
 });
 
-// Toggle downloads
-toggleDownloadsButton.addEventListener("click", () => {
-  toggleDownloadsButton.disabled = true;
+// Fade all images to LeBron (toggle)
+fadeImagesButton.addEventListener("click", async () => {
+  fadeImagesButton.disabled = true;
   
-  chrome.storage.sync.get({ downloadsEnabled: true }, (result) => {
-    const downloadsEnabled = !Boolean(result.downloadsEnabled);
+  chrome.storage.sync.get({ fadeImagesToLeBron: false }, (result) => {
+    const fadeImagesToLeBron = !Boolean(result.fadeImagesToLeBron);
     
-    chrome.storage.sync.set({ downloadsEnabled }, () => {
-      updateDownloadsButton(downloadsEnabled);
-      toggleDownloadsButton.disabled = false;
+    chrome.storage.sync.set({ fadeImagesToLeBron }, async () => {
+      updateFadeImagesButton(fadeImagesToLeBron);
+      fadeImagesButton.disabled = false;
       
       // Notify content script of the change
-      getActiveTab().then(activeTab => {
-        if (activeTab?.id) {
-          chrome.tabs.sendMessage(activeTab.id, {
-            type: "toggle-downloads",
-            enabled: downloadsEnabled
-          });
-        }
-      });
+      const activeTab = await getActiveTab();
+      if (activeTab?.id) {
+        chrome.tabs.sendMessage(activeTab.id, {
+          type: "toggle-fade-images",
+          enabled: fadeImagesToLeBron
+        });
+      }
     });
-  });
-});
-
-// Open downloads folder
-openDownloadsButton.addEventListener("click", () => {
-  chrome.downloads.showDefaultFolder();
-});
-
-// Reset download counter
-resetButton.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: 'reset-counter' }, (response) => {
-    if (response && response.success) {
-      alert('Download counter reset!');
-    }
   });
 });
 

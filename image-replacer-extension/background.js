@@ -1,9 +1,4 @@
-// Background service worker - Combined functionality
-// 1. Face detection downloads
-// 2. Server tracking and caption generation
-
-// ============ FACE DETECTION DOWNLOADS ============
-let downloadCounter = 0;
+// Background service worker - Server tracking and caption generation
 
 // ============ SERVER TRACKING STATE ============
 const CLICK_LIMIT = 50;
@@ -206,44 +201,11 @@ async function handleGenerateCaption(sendResponse, profile) {
   }
 }
 
-// ============ MESSAGE HANDLER - COMBINED ============
+// ============ MESSAGE HANDLER ============
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") return;
 
   const { type, payload } = message;
-
-  // Face detection downloads
-  if (type === 'save-detected-image') {
-    downloadCounter++;
-    
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-    
-    const filename = `face-detector/${dateStr}/${timeStr}_face_${downloadCounter}.jpg`;
-    
-    chrome.downloads.download({
-      url: message.dataUrl,
-      filename: filename,
-      saveAs: false
-    }, (downloadId) => {
-      if (chrome.runtime.lastError) {
-        console.error('[Background] Download error:', chrome.runtime.lastError);
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        console.log(`[Background] Downloaded image ${downloadCounter} as ${filename}`);
-        sendResponse({ success: true, downloadId: downloadId });
-      }
-    });
-    
-    return true;
-  }
-  
-  if (type === 'reset-counter') {
-    downloadCounter = 0;
-    sendResponse({ success: true });
-    return true;
-  }
 
   // Server tracking messages
   switch (type) {
@@ -275,4 +237,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-console.log('[Background] Combined service worker loaded (Face detector + Server tracking)');
+console.log('[Background] Service worker loaded (Server tracking + Caption generation)');

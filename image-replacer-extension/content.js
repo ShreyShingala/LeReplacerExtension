@@ -1,5 +1,4 @@
 
-//const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
 const FULL_SCAN_DEBOUNCE_MS = 80;
 const REPLACED_CLASS = "replaced";
 const METRICS_MAX_IMAGES = 3;
@@ -13,16 +12,20 @@ const KNOWN_FIGURES = [
   { name: "Kamala Harris", pattern: /\b(kamala\s+harris|kamala)\b/i },
   { name: "Elon Musk", pattern: /\b(elon\s+musk|elon)\b/i }
 ];
-const GOAT_IMAGE = "goat.png";
+
+const LEBRONS = ["lebrons/lebron1.png", "lebrons/lebron2.png", "lebrons/lebron3.png", "lebrons/lebron4.png"];
+
 const SUNSHINE_BG = "sunshine.jpg";
+const LEBRON = "lebrontogo.jpg";
+const FADE_TRANSITION_MS = 2000; // 2 seconds fade transition
 const INCREASE_OVERALL_SIZE = 1.5;
 const NO_PERSON_FLAG = "no-person-detected";
-let PLACEHOLDER_URL = null;
 let observer = null;
 let faceDetector = null;
 const detectionCache = new Map();
-let downloadsEnabled = true; // Default to enabled
+let fadeImagesToLeBron = false; // Default to disabled
 let isScanning = false;
+let extensionEnabled = true; // Track if extension is enabled
 let fullScanTimer = null;
 let clickFlushTimer = null;
 let scrollReportTimer = null;
@@ -64,24 +67,6 @@ async function handleDirectImagePage() {
   const result = await imageContainsFaceCached(img);
   if (result.hasFace && result.dataUrl) {
     replaceImageElement(img, result.dataUrl);
-    
-    // Save if downloads enabled
-    if (downloadsEnabled) {
-      console.log('[Image Replacer] Downloads enabled - saving image');
-      try {
-        chrome.runtime.sendMessage({
-          type: 'save-detected-image',
-          dataUrl: result.dataUrl,
-          originalSrc: img.src
-        }, (response) => {
-          if (response && response.success) {
-            console.log('[Image Replacer] Saved detected image to downloads');
-          }
-        });
-      } catch (e) {
-        console.error('[Image Replacer] Error saving image:', e);
-      }
-    }
   }
 }
 
@@ -141,13 +126,7 @@ function applyLeBronTheme() {
     .gb_E:hover, .gb_Sd:hover {
       background-color: rgba(139, 115, 85, 0.95) !important;
     }
-    
-    /* Google Search Bar - Complete brown coverage */
-    .RNNXgb, .SDkEP, .a4bIc, .gLFyf, .YacQv {
-      background-color: rgba(139, 90, 43, 0.12) !important;
-      border-color: #D4A574 !important;
-    }
-    
+       
     /* Search bar container */
     .A8SBwf, .RNNXgb, .emcav {
       background-color: rgba(139, 90, 43, 0.12) !important;
@@ -455,12 +434,15 @@ async function drawFacesOnImage(img, faces) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     
     if (faces && faces.length > 0) {
+      const randomLebron = LEBRONS[Math.floor(Math.random() * LEBRONS.length)];
+      console.log('[Image Replacer] Using LeBron image:', randomLebron);
+      
       const overlayImg = await new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
-        img.src = chrome.runtime.getURL(GOAT_IMAGE);
+        img.src = chrome.runtime.getURL(randomLebron);
       });
       
       faces.forEach(face => {
@@ -505,15 +487,6 @@ async function imageContainsFaceCached(img) {
   } catch (err) {
     console.error('[Image Replacer] Error in cached face detection:', err);
     return { hasFace: false, faces: null, dataUrl: null };
-  }
-}
-
-function isVisibleInViewport(img) {
-  try {
-    const rect = img.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= (window.innerHeight || document.documentElement.clientHeight) && rect.left <= (window.innerWidth || document.documentElement.clientWidth);
-  } catch (e) {
-    return false;
   }
 }
 
@@ -947,64 +920,18 @@ async function scanAndReplace() {
     const images = Array.from(document.images || []);
     if (!images.length) {
       console.log("[Image Replacer] No images found on this page.");
+      isScanning = false;
       return;
     }
 
     console.log(`[Image Replacer] Scanning ${images.length} images for faces...`);
     
-    for (const img of images) {
-      try {
-        const alreadyProcessed = img.classList && img.classList.contains(REPLACED_CLASS);
-        const markedNoFace = img.classList && img.classList.contains(NO_PERSON_FLAG);
-        
-        if (alreadyProcessed || markedNoFace) continue;
-        
-        if (!img.complete || !img.naturalWidth) {
-          await new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            setTimeout(resolve, 1000);
-          });
-        }
-        
-        if (!img.naturalWidth || img.naturalWidth < 100) {
-          continue;
-        }
-        
-        const result = await imageContainsFaceCached(img);
-        
-        if (result.hasFace && result.dataUrl) {
-          replaceImageElement(img, result.dataUrl);
-          
-          if (downloadsEnabled) {
-            try {
-              chrome.runtime.sendMessage({
-                type: 'save-detected-image',
-                dataUrl: result.dataUrl,
-                originalSrc: img.currentSrc || img.src
-              }, (response) => {
-                if (response && response.success) {
-                  console.log('[Image Replacer] Saved detected face image to downloads');
-                }
-              });
-            } catch (e) {
-              console.error('[Image Replacer] Error saving image:', e);
-            }
-          }
-        } else {
-          try {
-            img.classList.add(NO_PERSON_FLAG);
-            img.dataset[NO_PERSON_FLAG] = 'true';
-          } catch (e) {
-            // ignore
-          }
-        }
-      } catch (imgError) {
-        console.error('[Image Replacer] Error processing image:', imgError);
-      }
-    }
+    // Process each image independently without waiting - fire and forget
+    images.forEach((img) => {
+      processImageIndividually(img);
+    });
     
-    console.log('[Image Replacer] Face detection scan complete');
+    console.log('[Image Replacer] Face detection started for all images (processing individually)');
   } catch (err) {
     console.error('[Image Replacer] Error in scanAndReplace:', err);
   } finally {
@@ -1029,8 +956,38 @@ function startObserving() {
   if (observer) return;
 
   observer = new MutationObserver((mutations) => {
+    // If fade mode is enabled, fade new images instead of face detection
+    if (fadeImagesToLeBron) {
+      let newImages = [];
+      for (const mutation of mutations) {
+        if (mutation.type === "childList" && mutation.addedNodes && mutation.addedNodes.length) {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType !== Node.ELEMENT_NODE) return;
+            if (node.tagName === "IMG") {
+              newImages.push(node);
+            } else {
+              const imgs = node.querySelectorAll ? node.querySelectorAll("img") : [];
+              if (imgs.length) newImages.push(...Array.from(imgs));
+            }
+          });
+        }
+        if (mutation.type === "attributes" && mutation.target && mutation.target.tagName === "IMG") {
+          newImages.push(mutation.target);
+        }
+      }
+      
+      if (newImages.length > 0) {
+        console.log(`[Image Replacer] Fading ${newImages.length} new images to LeBron...`);
+        newImages.forEach((img, index) => {
+          fadeImageToLeBron(img, index * 50);
+        });
+      }
+      return;
+    }
+
+    // Face detection mode
     let sawRelevant = false;
-    let newImageCount = 0;
+    const newImages = [];
 
     for (const mutation of mutations) {
       if (mutation.type === "childList" && mutation.addedNodes && mutation.addedNodes.length) {
@@ -1038,29 +995,32 @@ function startObserving() {
           if (node.nodeType !== Node.ELEMENT_NODE) return;
 
           if (node.tagName === "IMG") {
-            replaceImageElement(node);
+            newImages.push(node);
             sawRelevant = true;
             return;
           }
 
           const imgs = node.querySelectorAll ? node.querySelectorAll("img") : [];
           if (imgs.length) {
-            newImageCount += imgs.length;
+            newImages.push(...Array.from(imgs));
             sawRelevant = true;
           }
         });
       }
 
       if (mutation.type === "attributes" && mutation.target && mutation.target.tagName === "IMG") {
+        newImages.push(mutation.target);
         sawRelevant = true;
       }
     }
 
-    if (sawRelevant) {
-      if (newImageCount > 0) {
-        console.log(`[Image Replacer] Detected ${newImageCount} new images, scheduling scan...`);
-      }
-      scheduleFullScan();
+    if (sawRelevant && newImages.length > 0) {
+      console.log(`[Image Replacer] Detected ${newImages.length} new images, processing individually...`);
+      
+      // Process each new image individually and asynchronously
+      newImages.forEach((img) => {
+        processImageIndividually(img);
+      });
     }
   });
 
@@ -1071,7 +1031,44 @@ function startObserving() {
     attributeFilter: ["src", "data-src", "srcset"]
   });
 
-  scanAndReplace();
+  // Only run initial scan if not in fade mode
+  if (!fadeImagesToLeBron) {
+    scanAndReplace();
+  }
+}
+
+// Process a single image asynchronously
+async function processImageIndividually(img) {
+  try {
+    const alreadyProcessed = img.classList && img.classList.contains(REPLACED_CLASS);
+    const markedNoFace = img.classList && img.classList.contains(NO_PERSON_FLAG);
+    
+    if (alreadyProcessed || markedNoFace) return;
+    
+    if (!img.complete || !img.naturalWidth) {
+      await new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 1000);
+      });
+    }
+    
+    const result = await imageContainsFaceCached(img);
+    
+    if (result.hasFace && result.dataUrl) {
+      replaceImageElement(img, result.dataUrl);
+      console.log('[Image Replacer] ✅ LeBron applied to new image:', img.src.substring(0, 50));
+    } else {
+      try {
+        img.classList.add(NO_PERSON_FLAG);
+        img.dataset[NO_PERSON_FLAG] = 'true';
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (imgError) {
+    console.error('[Image Replacer] Error processing individual image:', imgError);
+  }
 }
 
 function stopObservingAndRestore() {
@@ -1097,6 +1094,7 @@ function stopObservingAndRestore() {
 }
 
 function handleState(enabled) {
+  extensionEnabled = enabled;
   if (enabled) {
     console.log("[Image Replacer] Enabling image replacement and observer.");
     startObserving();
@@ -1111,17 +1109,25 @@ initMetricsTracking();
 initMetricsTracking();
 
 // Load initial settings
-chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
-  handleState(Boolean(result.enabled));
-  downloadsEnabled = Boolean(result.downloadsEnabled);
-  console.log(`[Image Replacer] Initial state - Downloads ${downloadsEnabled ? 'enabled' : 'disabled'}`);
+chrome.storage.sync.get({ enabled: true, fadeImagesToLeBron: false }, (result) => {
+  extensionEnabled = Boolean(result.enabled);
+  fadeImagesToLeBron = Boolean(result.fadeImagesToLeBron);
+  
+  console.log(`[Image Replacer] Initial state - Extension: ${extensionEnabled ? 'enabled' : 'disabled'}, Fade: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
+  
+  handleState(extensionEnabled);
+  
+  // If fade mode is enabled, immediately fade all images
+  if (fadeImagesToLeBron && extensionEnabled) {
+    fadeAllImagesToLeBronPermanent();
+  }
 });
 
 // Apply Google background immediately if on Google page
-applyGoogleBackground();
+// applyGoogleBackground();
 
 // Apply LeBron theme to ALL pages
-applyLeBronTheme();
+// applyLeBronTheme();
 
 // Handle direct image pages
 handleDirectImagePage();
@@ -1129,24 +1135,115 @@ handleDirectImagePage();
 // Listen for toggle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "toggle-image-replacement") {
+    extensionEnabled = message.enabled;
     handleState(message.enabled);
     sendResponse({ status: "ok" });
     return true;
   }
   
-  if (message?.type === "toggle-downloads") {
-    downloadsEnabled = message.enabled;
-    console.log(`[Image Replacer] Downloads toggled to: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
+  if (message?.type === "toggle-fade-images") {
+    const previousFade = fadeImagesToLeBron;
+    fadeImagesToLeBron = message.enabled;
+    console.log(`[Image Replacer] Fade to LeBron toggled to: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
+    
+    if (fadeImagesToLeBron && extensionEnabled) {
+      // When enabling fade, stop face detection observer and restart in fade mode
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      
+      // Immediately start fading all images
+      fadeAllImagesToLeBronPermanent();
+      
+      // Restart observer in fade mode
+      startObserving();
+    } else if (!fadeImagesToLeBron && previousFade && extensionEnabled) {
+      // When disabling fade, restart in face detection mode
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      
+      // Restart observer in face detection mode
+      startObserving();
+    }
+    
     sendResponse({ status: "ok" });
     return true;
   }
 });
 
+// Function to permanently fade all images to LeBron image (irreversible)
+function fadeAllImagesToLeBronPermanent() {
+  const lebronUrl = chrome.runtime.getURL(LEBRON);
+  const images = Array.from(document.images || []);
+  
+  console.log(`[Image Replacer] Permanently fading ${images.length} images to LeBron`);
+  
+  images.forEach((img, index) => {
+    fadeImageToLeBron(img, index * 50);
+  });
+}
+
+// Helper function to fade a single image to LeBron
+function fadeImageToLeBron(img, delay = 0) {
+  const lebronUrl = chrome.runtime.getURL(LEBRON);
+  
+  setTimeout(() => {
+    // Set up CSS transition
+    img.style.transition = `opacity ${FADE_TRANSITION_MS}ms ease-in-out`;
+    
+    // Fade out
+    img.style.opacity = '0';
+    
+    // After fade out completes, swap image and fade back in
+    setTimeout(() => {
+      img.src = lebronUrl;
+      if (img.srcset) img.srcset = '';
+      if (img.dataset && img.dataset.src) img.dataset.src = lebronUrl;
+      
+      // Wait a brief moment for the image to load, then fade in
+      setTimeout(() => {
+        img.style.opacity = '1';
+      }, 100);
+    }, FADE_TRANSITION_MS);
+  }, delay);
+}
+
 // Listen for storage changes (in case settings change from another tab)
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.downloadsEnabled) {
-    downloadsEnabled = Boolean(changes.downloadsEnabled.newValue);
-    console.log(`[Image Replacer] Downloads updated from storage: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
+  if (namespace === 'sync' && changes.fadeImagesToLeBron) {
+    const previousFade = fadeImagesToLeBron;
+    fadeImagesToLeBron = Boolean(changes.fadeImagesToLeBron.newValue);
+    console.log(`[Image Replacer] Fade to LeBron updated from storage: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
+    
+    if (fadeImagesToLeBron && extensionEnabled) {
+      // When enabling fade, restart observer in fade mode
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      fadeAllImagesToLeBronPermanent();
+      startObserving();
+    } else if (!fadeImagesToLeBron && previousFade && extensionEnabled) {
+      // When disabling fade, restart in face detection mode
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      startObserving();
+    }
+  }
+  
+  if (namespace === 'sync' && changes.enabled) {
+    extensionEnabled = Boolean(changes.enabled.newValue);
+    console.log(`[Image Replacer] Extension enabled state updated: ${extensionEnabled ? 'enabled' : 'disabled'}`);
   }
 });
 
+document.addEventListener('click', () => {
+  // Schedule follow-up scans shortly after clicks
+  setTimeout(() => scheduleFullScan(), 250);
+  setTimeout(() => scheduleFullScan(), 750);
+});

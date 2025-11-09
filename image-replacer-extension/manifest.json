@@ -3,7 +3,7 @@
   "name": "Image Replacer Prototype",
   "description": "Proof-of-concept Chrome extension that swaps all images on a page with a placeholder.",
   "version": "0.1.0",
-  "permissions": ["storage", "tabs", "downloads"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -16,14 +16,21 @@
     }
   ],
   "icons": {
-    "16": "logo.png",
-    "32": "logo.png",
-    "48": "logo.png",
-    "128": "logo.png"
+    "16": "logo.jpg",
+    "32": "logo.jpg",
+    "48": "logo.jpg",
+    "128": "logo.jpg"
   },
   "web_accessible_resources": [
     {
-      "resources": ["goat.png", "sunshine.jpg"],
+      "resources": [
+        "sunshine.jpg", 
+        "lebrontogo.jpg",
+        "lebrons/lebron1.png",
+        "lebrons/lebron2.png",
+        "lebrons/lebron3.png",
+        "lebrons/lebron4.png"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
@@ -31,14 +38,11 @@
     "default_title": "Image Replacer",
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "logo.png",
-      "32": "logo.png",
-      "48": "logo.png",
-      "128": "logo.png"
+      "16": "logo.jpg",
+      "32": "logo.jpg",
+      "48": "logo.jpg",
+      "128": "logo.jpg"
     }
-  },
-  "chrome_url_overrides": {
-    "newtab": "newtab.html"
   }
 }
 
