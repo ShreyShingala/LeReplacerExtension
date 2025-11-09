@@ -70,22 +70,22 @@ async function handleDirectImagePage() {
     replaceImageElement(img, result.dataUrl);
     
     // Save if downloads enabled
-    if (downloadsEnabled) {
-      console.log('[Image Replacer] Downloads enabled - saving image');
-      try {
-        chrome.runtime.sendMessage({
-          type: 'save-detected-image',
-          dataUrl: result.dataUrl,
-          originalSrc: img.src
-        }, (response) => {
-          if (response && response.success) {
-            console.log('[Image Replacer] Saved detected image to downloads');
-          }
-        });
-      } catch (e) {
-        console.error('[Image Replacer] Error saving image:', e);
-      }
-    }
+    // if (downloadsEnabled) {
+    //   console.log('[Image Replacer] Downloads enabled - saving image');
+    //   try {
+    //     chrome.runtime.sendMessage({
+    //       type: 'save-detected-image',
+    //       dataUrl: result.dataUrl,
+    //       originalSrc: img.src
+    //     }, (response) => {
+    //       if (response && response.success) {
+    //         console.log('[Image Replacer] Saved detected image to downloads');
+    //       }
+    //     });
+    //   } catch (e) {
+    //     console.error('[Image Replacer] Error saving image:', e);
+    //   }
+    // }
   }
 }
 
