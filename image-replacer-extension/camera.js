@@ -4,6 +4,9 @@ const ctx = canvas.getContext('2d');
 const stopButton = document.getElementById('stop');
 const errorDiv = document.getElementById('error');
 const statusDiv = document.getElementById('status');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+const strokeCountDisplay = document.getElementById('strokeCount');
 let stream = null;
 let model = null;
 let isDetecting = false;
@@ -11,6 +14,8 @@ let handPositionHistory = [];
 const HISTORY_LENGTH = 30;
 const STROKE_DETECTION_THRESHOLD = 10;
 let lastStrokeDirection = null;
+let strokeCount = 0;
+const MAX_STROKES = 20; // Number of strokes needed to fill the bar
 
 async function startCamera() {
   try {
@@ -53,6 +58,8 @@ function stopCamera() {
   }
   
   handPositionHistory = [];
+  strokeCount = 0;
+  updateProgressBar();
 }
 
 async function initHandDetection() {
@@ -168,7 +175,11 @@ stopButton.addEventListener('click', () => {
 });
 
 // Start camera when page loads
-startCamera();
+window.addEventListener('DOMContentLoaded', () => {
+  // Initialize progress bar
+  updateProgressBar();
+  startCamera();
+});
 
 // Clean up when page is closed
 window.addEventListener('beforeunload', () => {
@@ -237,12 +248,57 @@ function detectStrokingMotion() {
   
   // Detect direction change (stroke completion)
   if (currentDirection && lastStrokeDirection && currentDirection !== lastStrokeDirection) {
-    console.log(`🔄 STROKE DETECTED!`);
-    statusDiv.style.color = '#4CAF50';
+    strokeCount++;
+    console.log(`🔄 STROKE DETECTED! Count: ${strokeCount}`);
+    updateProgressBar();
+    
+    // Check if bar is full
+    if (strokeCount >= MAX_STROKES) {
+      notifyBarFull();
+    }
   }
   
   // Update last direction
   if (currentDirection) {
     lastStrokeDirection = currentDirection;
   }
+}
+
+// Update progress bar based on stroke count
+function updateProgressBar() {
+  if (!progressFill || !strokeCountDisplay) return;
+  
+  const percentage = Math.min((strokeCount / MAX_STROKES) * 100, 100);
+  progressFill.style.width = `${percentage}%`;
+  strokeCountDisplay.textContent = `${strokeCount} / ${MAX_STROKES}`;
+  
+  // Change color as it fills
+  if (percentage >= 100) {
+    progressFill.style.backgroundColor = '#4CAF50';
+  } else if (percentage >= 70) {
+    progressFill.style.backgroundColor = '#FFC107';
+  } else {
+    progressFill.style.backgroundColor = '#2196F3';
+  }
+}
+
+// Notify user when bar is full
+function notifyBarFull() {
+  // Show notification
+  const notification = document.getElementById('notification');
+  if (notification) {
+    notification.style.display = 'block';
+    notification.textContent = 'LEBRON BUSTED!';
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+      notification.style.display = 'none';
+    }, 3000);
+  }
+  
+  // Reset counter after notification
+  setTimeout(() => {
+    strokeCount = 0;
+    updateProgressBar();
+  }, 3000);
 }
