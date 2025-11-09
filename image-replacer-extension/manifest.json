@@ -16,10 +16,10 @@
     }
   ],
   "icons": {
-    "16": "logo.png",
-    "32": "logo.png",
-    "48": "logo.png",
-    "128": "logo.png"
+    "16": "logo.jpg",
+    "32": "logo.jpg",
+    "48": "logo.jpg",
+    "128": "logo.jpg"
   },
   "web_accessible_resources": [
     {
@@ -38,10 +38,10 @@
     "default_title": "Image Replacer",
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "logo.png",
-      "32": "logo.png",
-      "48": "logo.png",
-      "128": "logo.png"
+      "16": "logo.jpg",
+      "32": "logo.jpg",
+      "48": "logo.jpg",
+      "128": "logo.jpg"
     }
   }
 }

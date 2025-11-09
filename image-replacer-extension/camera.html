@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Camera Capture</title>
+    <link rel="stylesheet" href="camera.css">
+    <script src="handtrack.min.js"></script>
+    <script src="mediapipe-hands.js"></script>
+    <script src="mediapipe-camera.js"></script>
+    <script src="mediapipe-drawing.js"></script>
+  </head>
+  <body>
+    <h1>Camera Capture</h1>
+    <div class="video-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="controls">
+      <button id="stop">Stop Camera</button>
+    </div>
+    <div id="status">Initializing...</div>
+    <div id="error"></div>
+    <div class="progress-container">
+      <div class="progress-label">
+        <span>Stroke Progress</span>
+        <span id="strokeCount">0 / 10</span>
+      </div>
+      <div id="progressBar">
+        <div id="progressFill"></div>
+      </div>
+    </div>
+    <div id="notification"></div>
+    <script src="camera.js"></script>
+  </body>
+</html>
+

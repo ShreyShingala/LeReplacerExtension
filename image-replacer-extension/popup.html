@@ -3,174 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Image Replacer</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-      }
-
-      body {
-        font-family: "Inter", "Segoe UI", sans-serif;
-        margin: 0;
-        padding: 16px;
-        width: 280px;
-        background: linear-gradient(180deg, #141927 0%, #0d111a 100%);
-        color: #f5f5f5;
-      }
-
-      h1 {
-        font-size: 18px;
-        margin: 0 0 16px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-      }
-
-      .card {
-        background: rgba(15, 20, 32, 0.85);
-        border: 1px solid rgba(99, 102, 241, 0.35);
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 12px 24px rgba(12, 16, 31, 0.45);
-        backdrop-filter: blur(12px);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      label {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: rgba(244, 244, 255, 0.7);
-      }
-
-      input,
-      textarea {
-        width: 100%;
-        border-radius: 8px;
-        border: 1px solid rgba(99, 102, 241, 0.35);
-        background: rgba(19, 24, 38, 0.9);
-        color: #f5f5f5;
-        padding: 10px;
-        font-size: 14px;
-      }
-
-      input:focus,
-      textarea:focus {
-        outline: 2px solid rgba(129, 140, 248, 0.6);
-        outline-offset: 0;
-      }
-
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .button-row {
-        display: flex;
-        gap: 8px;
-      }
-
-      button {
-        flex: 1;
-        padding: 10px 12px;
-        font-size: 14px;
-        cursor: pointer;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: #0d111a;
-        transition: transform 0.15s ease, filter 0.15s ease;
-      }
-
-      button:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        filter: grayscale(0.7);
-      }
-
-      button:not(:disabled):hover {
-        transform: translateY(-1px);
-        filter: brightness(1.05);
-      }
-
-      textarea {
-        resize: vertical;
-        min-height: 140px;
-        line-height: 1.4;
-        letter-spacing: 0.01em;
-      }
-
-      .error {
-        color: #f87171;
-      }
-
-      .status {
-        font-size: 12px;
-        color: rgba(244, 244, 255, 0.7);
-        margin-top: 2px;
-        min-height: 16px;
-        margin-bottom: 8px;
-      }
-      
-      #reset {
-        background-color: #f44336;
-        color: white;
-        border: none;
-      }
-      
-      #reset:hover {
-        background-color: #da190b;
-      }
-      
-      #openDownloads {
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-      }
-      
-      #openDownloads:hover {
-        background-color: #45a049;
-      }
-      
-      .file-section {
-        margin: 12px 0;
-        padding: 10px;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-      }
-      
-      .file-section label {
-        display: block;
-        font-size: 12px;
-        font-weight: bold;
-        margin-bottom: 6px;
-      }
-      
-      #imageUpload {
-        width: 100%;
-        font-size: 12px;
-      }
-      
-      .preview {
-        margin-top: 8px;
-        text-align: center;
-      }
-      
-      .preview img {
-        max-width: 100%;
-        max-height: 80px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      
-      .preview-text {
-        font-size: 11px;
-        color: #666;
-        margin-top: 4px;
-      }
-    </style>
+    <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <h1>Image Replacer</h1>
@@ -188,11 +21,18 @@
       <button id="copy" disabled>Copy caption</button>
       <p id="status" class="status"></p>
     </div>
-    <div class="card" style="margin-top: 12px;">
-      <h2 style="font-size: 16px; margin: 0 0 12px; font-weight: 600;">Image Controls</h2>
+
+    <div class="card card-spacing">
+      <h2>Image Controls</h2>
       <button id="fadeImages" style="background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);">Loading...</button>
       <button id="toggle">Loading...</button>
     </div>
+    
+    <div class="card card-spacing">
+      <h2>Camera Controls</h2>
+      <button id="cameraButton">Loading...</button>
+    </div>  
+    
     <script src="popup.js"></script>
   </body>
 </html>
