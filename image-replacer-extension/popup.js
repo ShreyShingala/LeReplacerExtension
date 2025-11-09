@@ -2,6 +2,7 @@ const toggleButton = document.getElementById("toggle");
 const generateButton = document.getElementById("generate");
 const tweetButton = document.getElementById("generateTweet");
 const copyButton = document.getElementById("copy");
+const tweetNowButton = document.getElementById("tweetNow");
 const captionField = document.getElementById("caption");
 const statusEl = document.getElementById("status");
 const tweetInfoEl = document.getElementById("tweetInfo");
@@ -52,6 +53,10 @@ function resetActionButtons() {
   if (tweetButton) {
     tweetButton.disabled = false;
     tweetButton.textContent = "Generate & Tweet";
+  }
+  if (tweetNowButton) {
+    tweetNowButton.disabled = !captionField?.value?.trim();
+    tweetNowButton.textContent = "Tweet now";
   }
 }
 
@@ -215,6 +220,49 @@ copyButton?.addEventListener("click", async () => {
   }
 });
 
+// Tweet the currently edited caption immediately
+tweetNowButton?.addEventListener("click", () => {
+  const caption = captionField.value.trim();
+  if (!caption) {
+    setStatus("No caption to tweet.", true);
+    return;
+  }
+
+  tweetNowButton.disabled = true;
+  tweetNowButton.textContent = "Posting...";
+  setStatus("Posting caption to X/Twitter...");
+
+  const profile = getProfilePayload();
+  const payload = { profile, postToTwitter: true, tweetText: caption.slice(0, 280) };
+
+  chrome.runtime.sendMessage({ type: "generate-caption", payload }, (response) => {
+    resetActionButtons();
+
+    if (chrome.runtime.lastError) {
+      setStatus("Failed to reach local caption server. Is it running?", true);
+      return;
+    }
+
+    if (!response?.ok) {
+      const message = response?.error || "Caption request failed.";
+      setStatus(message, true);
+      return;
+    }
+
+    if (response.tweeted) {
+      setStatus("Caption posted to X/Twitter successfully!");
+      if (tweetInfoEl && response.tweetText) {
+        tweetInfoEl.textContent = response.tweetText;
+        tweetInfoEl.style.display = "block";
+      }
+    } else if (response.tweetError) {
+      setStatus(`Caption ready, but tweeting failed: ${response.tweetError}`, true);
+    } else {
+      setStatus("Caption ready, but tweet was not sent.", true);
+    }
+  });
+});
+
 nameInput?.addEventListener("blur", cacheProfile);
 handleInput?.addEventListener("blur", cacheProfile);
 nameInput?.addEventListener("keydown", (event) => {
@@ -251,5 +299,12 @@ fadeImagesButton.addEventListener("click", async () => {
       }
     });
   });
+});
+
+// Enable/disable tweetNow and copy button based on caption field content
+captionField?.addEventListener("input", () => {
+  const has = Boolean(captionField.value.trim());
+  if (copyButton) copyButton.disabled = !has;
+  if (tweetNowButton) tweetNowButton.disabled = !has;
 });
 

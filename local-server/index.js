@@ -133,6 +133,15 @@ app.post("/generate", async (req, res) => {
   let tweetResult = null;
   let tweetError = null;
 
+  function sanitizeTweetInput(text = "") {
+    if (typeof text !== "string") return "";
+    // Remove control characters except common whitespace (tab/newline)
+    // Replace CR and other invisibles with spaces, keep printable characters including quotes/braces
+    const cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ").trim();
+    // Ensure max length 280 (Twitter limit)
+    return cleaned.length > 280 ? cleaned.slice(0, 279) : cleaned;
+  }
+
   try {
     caption = await generateCaption(apiKey, context);
   } catch (error) {
@@ -144,7 +153,8 @@ app.post("/generate", async (req, res) => {
 
   if (req.body?.postToTwitter) {
     const override = typeof req.body?.tweetText === "string" ? req.body.tweetText : null;
-    const tweetText = override?.trim().length ? override.trim() : caption;
+    const rawTweetText = override?.trim().length ? override.trim() : caption;
+    const tweetText = sanitizeTweetInput(rawTweetText);
 
     try {
       tweetResult = await postTweet(tweetText);
