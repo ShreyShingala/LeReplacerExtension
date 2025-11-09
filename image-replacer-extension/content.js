@@ -1,4 +1,4 @@
-
+const PLACEHOLDER_URL = "https://cdn.bap-software.net/2024/02/22165839/testdebug2.jpg";
 const FULL_SCAN_DEBOUNCE_MS = 80;
 const REPLACED_CLASS = "replaced";
 const METRICS_MAX_IMAGES = 3;
@@ -12,20 +12,18 @@ const KNOWN_FIGURES = [
   { name: "Kamala Harris", pattern: /\b(kamala\s+harris|kamala)\b/i },
   { name: "Elon Musk", pattern: /\b(elon\s+musk|elon)\b/i }
 ];
+const GOAT_IMAGE = "goat.png";
 
 const LEBRONS = ["lebrons/lebron1.png", "lebrons/lebron2.png", "lebrons/lebron3.png", "lebrons/lebron4.png"];
 
 const SUNSHINE_BG = "sunshine.jpg";
-const LEBRON = "lebrontogo.jpg";
-const FADE_TRANSITION_MS = 2000; // 2 seconds fade transition
 const INCREASE_OVERALL_SIZE = 1.5;
 const NO_PERSON_FLAG = "no-person-detected";
 let observer = null;
 let faceDetector = null;
 const detectionCache = new Map();
-let fadeImagesToLeBron = false; // Default to disabled
+let downloadsEnabled = true; // Default to enabled
 let isScanning = false;
-let extensionEnabled = true; // Track if extension is enabled
 let fullScanTimer = null;
 let clickFlushTimer = null;
 let scrollReportTimer = null;
@@ -67,6 +65,24 @@ async function handleDirectImagePage() {
   const result = await imageContainsFaceCached(img);
   if (result.hasFace && result.dataUrl) {
     replaceImageElement(img, result.dataUrl);
+    
+    // Save if downloads enabled
+    if (downloadsEnabled) {
+      console.log('[Image Replacer] Downloads enabled - saving image');
+      try {
+        chrome.runtime.sendMessage({
+          type: 'save-detected-image',
+          dataUrl: result.dataUrl,
+          originalSrc: img.src
+        }, (response) => {
+          if (response && response.success) {
+            console.log('[Image Replacer] Saved detected image to downloads');
+          }
+        });
+      } catch (e) {
+        console.error('[Image Replacer] Error saving image:', e);
+      }
+    }
   }
 }
 
@@ -126,7 +142,13 @@ function applyLeBronTheme() {
     .gb_E:hover, .gb_Sd:hover {
       background-color: rgba(139, 115, 85, 0.95) !important;
     }
-       
+    
+    /* Google Search Bar - Complete brown coverage */
+    .RNNXgb, .SDkEP, .a4bIc, .gLFyf, .YacQv {
+      background-color: rgba(139, 90, 43, 0.12) !important;
+      border-color: #D4A574 !important;
+    }
+    
     /* Search bar container */
     .A8SBwf, .RNNXgb, .emcav {
       background-color: rgba(139, 90, 43, 0.12) !important;
@@ -434,14 +456,15 @@ async function drawFacesOnImage(img, faces) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     
     if (faces && faces.length > 0) {
-      const randomLebron = LEBRONS[Math.floor(Math.random() * LEBRONS.length)];
-      console.log('[Image Replacer] Using LeBron image:', randomLebron);
-      
       const overlayImg = await new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
+
+        const randomLebron = LEBRONS[Math.floor(Math.random() * LEBRONS.length)];
+        console.log('randomLebron:', randomLebron);
+        
         img.src = chrome.runtime.getURL(randomLebron);
       });
       
@@ -956,36 +979,6 @@ function startObserving() {
   if (observer) return;
 
   observer = new MutationObserver((mutations) => {
-    // If fade mode is enabled, fade new images instead of face detection
-    if (fadeImagesToLeBron) {
-      let newImages = [];
-      for (const mutation of mutations) {
-        if (mutation.type === "childList" && mutation.addedNodes && mutation.addedNodes.length) {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType !== Node.ELEMENT_NODE) return;
-            if (node.tagName === "IMG") {
-              newImages.push(node);
-            } else {
-              const imgs = node.querySelectorAll ? node.querySelectorAll("img") : [];
-              if (imgs.length) newImages.push(...Array.from(imgs));
-            }
-          });
-        }
-        if (mutation.type === "attributes" && mutation.target && mutation.target.tagName === "IMG") {
-          newImages.push(mutation.target);
-        }
-      }
-      
-      if (newImages.length > 0) {
-        console.log(`[Image Replacer] Fading ${newImages.length} new images to LeBron...`);
-        newImages.forEach((img, index) => {
-          fadeImageToLeBron(img, index * 50);
-        });
-      }
-      return;
-    }
-
-    // Face detection mode
     let sawRelevant = false;
     const newImages = [];
 
@@ -1031,10 +1024,7 @@ function startObserving() {
     attributeFilter: ["src", "data-src", "srcset"]
   });
 
-  // Only run initial scan if not in fade mode
-  if (!fadeImagesToLeBron) {
-    scanAndReplace();
-  }
+  scanAndReplace();
 }
 
 // Process a single image asynchronously
@@ -1058,6 +1048,22 @@ async function processImageIndividually(img) {
     if (result.hasFace && result.dataUrl) {
       replaceImageElement(img, result.dataUrl);
       console.log('[Image Replacer] ✅ LeBron applied to new image:', img.src.substring(0, 50));
+      
+      if (downloadsEnabled) {
+        try {
+          chrome.runtime.sendMessage({
+            type: 'save-detected-image',
+            dataUrl: result.dataUrl,
+            originalSrc: img.currentSrc || img.src
+          }, (response) => {
+            if (response && response.success) {
+              console.log('[Image Replacer] Saved detected face image to downloads');
+            }
+          });
+        } catch (e) {
+          console.error('[Image Replacer] Error saving image:', e);
+        }
+      }
     } else {
       try {
         img.classList.add(NO_PERSON_FLAG);
@@ -1094,7 +1100,6 @@ function stopObservingAndRestore() {
 }
 
 function handleState(enabled) {
-  extensionEnabled = enabled;
   if (enabled) {
     console.log("[Image Replacer] Enabling image replacement and observer.");
     startObserving();
@@ -1109,18 +1114,10 @@ initMetricsTracking();
 initMetricsTracking();
 
 // Load initial settings
-chrome.storage.sync.get({ enabled: true, fadeImagesToLeBron: false }, (result) => {
-  extensionEnabled = Boolean(result.enabled);
-  fadeImagesToLeBron = Boolean(result.fadeImagesToLeBron);
-  
-  console.log(`[Image Replacer] Initial state - Extension: ${extensionEnabled ? 'enabled' : 'disabled'}, Fade: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
-  
-  handleState(extensionEnabled);
-  
-  // If fade mode is enabled, immediately fade all images
-  if (fadeImagesToLeBron && extensionEnabled) {
-    fadeAllImagesToLeBronPermanent();
-  }
+chrome.storage.sync.get({ enabled: true, downloadsEnabled: true }, (result) => {
+  handleState(Boolean(result.enabled));
+  downloadsEnabled = Boolean(result.downloadsEnabled);
+  console.log(`[Image Replacer] Initial state - Downloads ${downloadsEnabled ? 'enabled' : 'disabled'}`);
 });
 
 // Apply Google background immediately if on Google page
@@ -1135,40 +1132,14 @@ handleDirectImagePage();
 // Listen for toggle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "toggle-image-replacement") {
-    extensionEnabled = message.enabled;
     handleState(message.enabled);
     sendResponse({ status: "ok" });
     return true;
   }
   
-  if (message?.type === "toggle-fade-images") {
-    const previousFade = fadeImagesToLeBron;
-    fadeImagesToLeBron = message.enabled;
-    console.log(`[Image Replacer] Fade to LeBron toggled to: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
-    
-    if (fadeImagesToLeBron && extensionEnabled) {
-      // When enabling fade, stop face detection observer and restart in fade mode
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      
-      // Immediately start fading all images
-      fadeAllImagesToLeBronPermanent();
-      
-      // Restart observer in fade mode
-      startObserving();
-    } else if (!fadeImagesToLeBron && previousFade && extensionEnabled) {
-      // When disabling fade, restart in face detection mode
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      
-      // Restart observer in face detection mode
-      startObserving();
-    }
-    
+  if (message?.type === "toggle-downloads") {
+    downloadsEnabled = message.enabled;
+    console.log(`[Image Replacer] Downloads toggled to: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
     sendResponse({ status: "ok" });
     return true;
   }
@@ -1213,37 +1184,9 @@ function fadeImageToLeBron(img, delay = 0) {
 
 // Listen for storage changes (in case settings change from another tab)
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.fadeImagesToLeBron) {
-    const previousFade = fadeImagesToLeBron;
-    fadeImagesToLeBron = Boolean(changes.fadeImagesToLeBron.newValue);
-    console.log(`[Image Replacer] Fade to LeBron updated from storage: ${fadeImagesToLeBron ? 'enabled' : 'disabled'}`);
-    
-    if (fadeImagesToLeBron && extensionEnabled) {
-      // When enabling fade, restart observer in fade mode
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      fadeAllImagesToLeBronPermanent();
-      startObserving();
-    } else if (!fadeImagesToLeBron && previousFade && extensionEnabled) {
-      // When disabling fade, restart in face detection mode
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      startObserving();
-    }
-  }
-  
-  if (namespace === 'sync' && changes.enabled) {
-    extensionEnabled = Boolean(changes.enabled.newValue);
-    console.log(`[Image Replacer] Extension enabled state updated: ${extensionEnabled ? 'enabled' : 'disabled'}`);
+  if (namespace === 'sync' && changes.downloadsEnabled) {
+    downloadsEnabled = Boolean(changes.downloadsEnabled.newValue);
+    console.log(`[Image Replacer] Downloads updated from storage: ${downloadsEnabled ? 'enabled' : 'disabled'}`);
   }
 });
 
-document.addEventListener('click', () => {
-  // Schedule follow-up scans shortly after clicks
-  setTimeout(() => scheduleFullScan(), 250);
-  setTimeout(() => scheduleFullScan(), 750);
-});

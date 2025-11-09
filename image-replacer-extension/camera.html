@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Camera Capture</title>
+    <script src="ml5.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #1a1a1a;
+        color: white;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .video-container {
+        position: relative;
+        width: 100%;
+        max-width: 640px;
+      }
+      #video {
+        width: 100%;
+        max-width: 640px;
+        border: 2px solid #333;
+        border-radius: 8px;
+        background: #000;
+        display: block;
+      }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        border-radius: 8px;
+      }
+      .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #4CAF50;
+        color: white;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      button.stop {
+        background: #f44336;
+      }
+      button.stop:hover {
+        background: #da190b;
+      }
+      #error {
+        color: #f44336;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Camera Capture</h1>
+    <div class="video-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="controls">
+      <button id="stop">Stop Camera</button>
+    </div>
+    <div id="status">Initializing...</div>
+    <div id="error"></div>
+    <script src="camera.js"></script>
+  </body>
+</html>
+

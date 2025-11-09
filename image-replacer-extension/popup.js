@@ -7,8 +7,14 @@ const nameInput = document.getElementById("name");
 const handleInput = document.getElementById("handle");
 const fadeImagesButton = document.getElementById("fadeImages");
 
+const cameraButton = document.getElementById("cameraButton");
+
 function updateToggleButton(enabled) {
   toggleButton.textContent = enabled ? "Disable face detection" : "Enable face detection";
+}
+
+function updateCameraButton(enabled) {
+  cameraButton.textContent = enabled ? "Disable camera" : "Open Camera";
 }
 
 function updateFadeImagesButton(enabled) {
@@ -75,6 +81,12 @@ chrome.storage.sync.get({ enabled: true, creatorName: "", creatorHandle: "", fad
   if (handleInput) handleInput.value = sanitizeHandle(result.creatorHandle || "");
   
   fadeImagesButton.disabled = false;
+  
+  // Initialize camera button
+  if (cameraButton) {
+    cameraButton.disabled = false;
+    cameraButton.textContent = "Open Camera";
+  }
 });
 
 toggleButton.addEventListener("click", async () => {
@@ -93,10 +105,24 @@ toggleButton.addEventListener("click", async () => {
           enabled
         });
       }
-
       toggleButton.disabled = false;
     });
   });
+});
+
+cameraButton.addEventListener("click", async () => {
+  try {
+    // Open camera page in a new window
+    chrome.windows.create({
+      url: chrome.runtime.getURL('camera.html'),
+      type: 'popup',
+      width: 700,
+      height: 600
+    });
+  } catch (error) {
+    console.error('Error opening camera:', error);
+    setStatus('Failed to open camera', true);
+  }
 });
 
 function requestCaption() {
