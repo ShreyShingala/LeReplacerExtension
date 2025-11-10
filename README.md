@@ -1,6 +1,10 @@
+# **Winner of Best Pitch @ Go On Hacks 2025**
+
 # LeReplacer - Chrome Extension
 
 A Chrome extension that automatically detects and replaces images containing faces with LeBron James images, includes hand tracking camera controls, and features a caption generator for social media posts. Made because WE NEED TO SEE MORE LEBRON IN OUR INTERNET.
+
+[YouTube demo](https://www.youtube.com/watch?v=ppbUnvcdWOQ)
 
 ## Inspiration:
 
@@ -22,7 +26,7 @@ Scrolling Instagram and getting tired of the same people over and over again? Yo
 ### Caption Generator (Twitter Bot)
 - **Generate Captions**: Creates weird captions using Gemini API
 - **Auto-Post to Twitter/X**: Automatically posts generated captions
-- **Link to Twitter bot**: [@Lebronsmygoat_](https://x.com/Lebronsmygoat_)
+- **Link to Twitter bot**: The twitter bot is https://x.com/Lebronsmygoat_ 
 
 ## Installation
 

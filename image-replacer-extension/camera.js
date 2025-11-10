@@ -18,7 +18,7 @@ const HISTORY_LENGTH = 30; // Increased for better detection
 const STROKE_DETECTION_THRESHOLD = 80; 
 const MIN_STROKE_DISTANCE = 100;
 const NOISE_THRESHOLD = 5;
-const MAX_STROKES = 10;
+const MAX_STROKES = 30;
 let lastStrokeDirection = null;
 let strokeCount = 0;
 
